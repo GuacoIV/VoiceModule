@@ -116,6 +116,12 @@ VoiceModule.out \
 EXE_OUTPUTS__QUOTED += \
 "VoiceModule.out" \
 
+BIN_OUTPUTS += \
+VoiceModule.hex \
+
+BIN_OUTPUTS__QUOTED += \
+"VoiceModule.hex" \
+
 
 # All Target
 all: VoiceModule.out
@@ -124,13 +130,19 @@ all: VoiceModule.out
 VoiceModule.out: $(OBJS) $(CMD_SRCS) $(LIB_SRCS) $(GEN_CMDS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: C2000 Linker'
-	"c:/ti/ccsv6/tools/compiler/c2000_6.2.8/bin/cl2000" -v28 -ml -mt -O0 -g --define="_FLASH" --define=NDEBUG --define="_DEBUG" --define="LARGE_MODEL" --quiet --verbose_diagnostics --diag_warning=225 --gen_func_subsections=on --output_all_syms --cdebug_asm_data -z --stack_size=0x300 -m"VoiceModule.map" --heap_size=0x200 --warn_sections -i"c:/ti/ccsv6/tools/compiler/c2000_6.2.8/lib" -i"c:/ti/ccsv6/tools/compiler/c2000_6.2.8/include" -i"C:/Users/Edward/Documents/CodeComposerWorkspace_v6_0/VoiceModule" -i"C:/ti/controlSUITE/development_kits/C2000_LaunchPad/F2802x_common/lib" --reread_libs --verbose_diagnostics --issue_remarks --xml_link_info="VoiceModule_linkInfo.xml" --entry_point=code_start --rom_model -o "VoiceModule.out" $(ORDERED_OBJS)
+	"c:/ti/ccsv6/tools/compiler/c2000_6.2.8/bin/cl2000" -v28 -ml -mt -O0 -g --define="_FLASH" --define=NDEBUG --define="_DEBUG" --define="LARGE_MODEL" --quiet --verbose_diagnostics --diag_warning=225 --gen_func_subsections=on --output_all_syms --cdebug_asm_data -z -m"VoiceModule.map" --heap_size=0x200 --stack_size=0x300 --warn_sections -i"c:/ti/ccsv6/tools/compiler/c2000_6.2.8/lib" -i"c:/ti/ccsv6/tools/compiler/c2000_6.2.8/include" -i"C:/Users/Edward/Documents/CodeComposerWorkspace_v6_0/VoiceModule" -i"C:/ti/controlSUITE/development_kits/C2000_LaunchPad/F2802x_common/lib" --reread_libs --verbose_diagnostics --issue_remarks --xml_link_info="VoiceModule_linkInfo.xml" --entry_point=code_start --rom_model -o "VoiceModule.out" $(ORDERED_OBJS)
 	@echo 'Finished building target: $@'
+	@echo ' '
+
+VoiceModule.hex: $(EXE_OUTPUTS)
+	@echo 'Invoking: C2000 Hex Utility'
+	"c:/ti/ccsv6/tools/compiler/c2000_6.2.8/bin/hex2000"  -o "VoiceModule.hex" $(EXE_OUTPUTS__QUOTED)
+	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) $(EXE_OUTPUTS__QUOTED)
+	-$(RM) $(EXE_OUTPUTS__QUOTED)$(BIN_OUTPUTS__QUOTED)
 	-$(RM) "VoiceModule.pp" 
 	-$(RM) "VoiceModule.obj" 
 	-@echo 'Finished clean'
