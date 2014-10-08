@@ -1,8 +1,6 @@
 //###########################################################################
 //
-// FILE:    Example_F2802x0controlPadDemo.c
-//
-// TITLE:   This example comes pre-loaded on the controlPad
+// FILE:    VoiceModule.c
 //
 // ASSUMPTIONS:
 //
@@ -46,28 +44,6 @@
 //   Reset the device, and Run example
 //
 //   $End_Boot_Table
-//
-// DESCRIPTION:
-//
-//  This program is the demo program that comes pre-loaded on the controlPad
-//  development kit.  The program starts by flashing the 4 bit binary display.
-//  When the user pushes S3 (GPIO12) the demo then stops flashing the display
-//  and samples the device's internal temperature sensor to establish a
-//  reference.  After this, the board displays a value of 0x08 and displays
-//  any increase or decrease in temperature as a delta on the display.  So for
-//  instance if the temperature was initially 20C and now it is 22C, the value
-//  on the display would be 22C - 20C + 8 = 10 = 0x0A = 0b1010.  Additionally,
-//  the reference temperature may be reset to the current value by pressing
-//  and holding S3.
-//
-//    Watch Variables
-//        referenceTemp
-//        currentTemp
-//
-//###########################################################################
-// $TI Release: LaunchPad f2802x Support Library v100 $
-// $Release Date: Wed Jul 25 10:45:39 CDT 2012 $
-//###########################################################################
 
 #include <stdio.h>
 #include <file.h>
@@ -108,25 +84,6 @@ FLASH_Handle myFlash;
 GPIO_Handle myGpio;
 PIE_Handle myPie;
 SCI_Handle mySci;
-
-int16_t sampleTemperature(void)
-{
-
-    //Force start of conversion on SOC0 and SOC1
-    ADC_forceConversion(myAdc, ADC_SocNumber_0);
-    ADC_forceConversion(myAdc, ADC_SocNumber_1);
-
-    //Wait for end of conversion.
-    while(ADC_getIntStatus(myAdc, ADC_IntNumber_1) == 0) {
-    }
-
-    // Clear ADCINT1
-    ADC_clearIntFlag(myAdc, ADC_IntNumber_1);
-
-    // Get temp sensor sample result from SOC1
-    return (ADC_readResult(myAdc, ADC_ResultNumber_1));
-
-}
 
 void drawTILogo(void)
 {
@@ -215,17 +172,6 @@ void clearTextBox(void)
     putchar(0x1B);
     putchar('[');
     putchar('s');
-
-}
-
-void updateTemperature(void)
-{
-    // Restore cursor position
-    putchar(0x1B);
-    putchar('[');
-    putchar('u');
-
-    printf("%d Celcius = Ref + %d ", currentTemp, (currentTemp - referenceTemp));
 
 }
 
@@ -366,20 +312,7 @@ void main()
     // Initialize SCIA
     scia_init();
 
-    // Initialize the ADC
-    ADC_enableBandGap(myAdc);
-    ADC_enableRefBuffers(myAdc);
-    ADC_powerUp(myAdc);
-    ADC_enable(myAdc);
-    ADC_setVoltRefSrc(myAdc, ADC_VoltageRefSrc_Int);
-
-    ADC_enableTempSensor(myAdc);                                            //Connect channel A5 internally to the temperature sensor
-    ADC_setSocChanNumber (myAdc, ADC_SocNumber_0, ADC_SocChanNumber_A5);    //Set SOC0 channel select to ADCINA5
-    ADC_setSocChanNumber (myAdc, ADC_SocNumber_1, ADC_SocChanNumber_A5);    //Set SOC1 channel select to ADCINA5
-    ADC_setSocSampleWindow(myAdc, ADC_SocNumber_0, ADC_SocSampleWindow_7_cycles);   //Set SOC0 acquisition period to 7 ADCCLK
-    ADC_setSocSampleWindow(myAdc, ADC_SocNumber_1, ADC_SocSampleWindow_7_cycles);   //Set SOC1 acquisition period to 7 ADCCLK
-    ADC_setIntSrc(myAdc, ADC_IntNumber_1, ADC_IntSrc_EOC1);                 //Connect ADCINT1 to EOC1
-    ADC_enableInt(myAdc, ADC_IntNumber_1);                                  //Enable ADCINT1
+    // TODO: Initialize the ADC
 
     // Set the flash OTP wait-states to minimum. This is important
     // for the performance of the temperature conversion function.
@@ -403,6 +336,7 @@ void main()
     GPIO_setDirection(myGpio, GPIO_Number_2, GPIO_Direction_Output);
     GPIO_setDirection(myGpio, GPIO_Number_3, GPIO_Direction_Output);
 
+    //Push button input to start
     GPIO_setMode(myGpio, GPIO_Number_12, GPIO_12_Mode_GeneralPurpose);
     GPIO_setDirection(myGpio, GPIO_Number_12, GPIO_Direction_Input);
     GPIO_setPullUp(myGpio, GPIO_Number_12, GPIO_PullUp_Disable);
@@ -447,29 +381,11 @@ void main()
     //Clear out one of the text boxes so we can write more info to it
     clearTextBox();
 
-    // Sample the temperature and save it as our reference
-    referenceTemp = ADC_getTemperatureC(myAdc, sampleTemperature());
-
-    // Light up the binary display with a median value (0x08)
-    GPIO_setPortData(myGpio, GPIO_Port_A, (~0x08) & 0x0F);
-
-
     //Main program loop - continually sample temperature
     for(;;) {
-
-        // Convert the raw temperature sensor measurement into temperature
-        currentTemp = ADC_getTemperatureC(myAdc, sampleTemperature());
-
-        updateTemperature();
         printf("Hello there!");
-        GPIO_setPortData(myGpio, GPIO_Port_A, (~(0x08 + (currentTemp - referenceTemp))) & 0x0F);
 
         DELAY_US(1000000);
-
-        if(GPIO_getData(myGpio, GPIO_Number_12) == 1) {
-
-            referenceTemp = ADC_getTemperatureC(myAdc, sampleTemperature());
-        }
 
     }
 }
