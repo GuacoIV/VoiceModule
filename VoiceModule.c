@@ -73,17 +73,18 @@ const unsigned char escWhite[] = {0x1B, 0x5B, '3','7', 'm'};
 const unsigned char escLeft[] = {0x1B, 0x5B, '3','7', 'm'};
 const unsigned char pucTempString[] = "Current Temperature:";
 
-
-
-int16_t referenceTemp;
-int16_t currentTemp;
-
 ADC_Handle myAdc;
 CLK_Handle myClk;
 FLASH_Handle myFlash;
 GPIO_Handle myGpio;
 PIE_Handle myPie;
 SCI_Handle mySci;
+
+#define FRAME_SIZE 256
+
+int ConversionCount = 0;
+int16_t voltage[FRAME_SIZE];
+int16_t frame[FRAME_SIZE];
 
 void drawTILogo(void)
 {
@@ -231,8 +232,8 @@ void scia_init()
  */
 uint8_t SPI_transfer_byte(uint8_t byte_out)
 {
-    uint8_t byte_in = 0;
-    uint8_t bit;
+    //uint8_t byte_in = 0;
+    //uint8_t bit;
 
 //    for (bit = 0x80; bit; bit >>= 1) {
 //       /* Shift-out a bit to the MOSI line */
@@ -255,7 +256,7 @@ uint8_t SPI_transfer_byte(uint8_t byte_out)
 //        write_SCLK(LOW);
 //    }
 
-    return byte_in;
+    return 0;//byte_in;
 }
 
 void main()
@@ -381,9 +382,16 @@ void main()
     //Clear out one of the text boxes so we can write more info to it
     clearTextBox();
 
+    int i;
+    for(i = 0; i < FRAME_SIZE; i++)
+    {
+    	voltage[i] = 0;
+    	frame[i] = 0;
+    }
+
     //Main program loop - continually sample temperature
     for(;;) {
-        printf("Hello there!");
+        printf("Hello there dude!!"/* + Voltage1[0] + Voltage2[0] + Frame[0]*/);
 
         DELAY_US(1000000);
 
