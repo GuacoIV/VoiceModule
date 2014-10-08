@@ -5,7 +5,7 @@
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_PROGRAM.Texas Instruments XDS100v1 USB Emulator_0/C28xx" value="${build_artifact:VoiceModule}"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_PROJECT.Texas Instruments XDS100v1 USB Emulator_0/C28xx" value="VoiceModule"/>
 <stringAttribute key="com.ti.ccstudio.debug.debugModel.ATTR_TARGET_CONFIG" value="${target_config_active_default:VoiceModule}"/>
-<stringAttribute key="com.ti.ccstudio.debug.debugModel.MRU_PROGRAM.Texas Instruments XDS100v1 USB Emulator_0/C28xx" value="C:/Users\Edward\Documents\CodeComposerWorkspace_v6_0\VoiceModule\Flash\Example_F2802xLaunchPad_demo.out"/>
+<stringAttribute key="com.ti.ccstudio.debug.debugModel.MRU_PROGRAM.Texas Instruments XDS100v1 USB Emulator_0/C28xx" value="C:/Users\Edward\Documents\CodeComposerWorkspace_v6_0\VoiceModule\Flash\VoiceModule.out"/>
 <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
 <listEntry value="/VoiceModule"/>
 </listAttribute>

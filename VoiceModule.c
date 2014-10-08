@@ -61,7 +61,8 @@
 #include "f2802x_common/include/sci_io.h"
 #include "f2802x_common/include/wdog.h"
 
-#define CONV_WAIT 1L //Micro-seconds to wait for ADC conversion. Longer than necessary.
+__interrupt void adc_isr(void);
+void Adc_Config(void);
 
 extern void DSP28x_usDelay(Uint32 Count);
 
@@ -79,6 +80,7 @@ FLASH_Handle myFlash;
 GPIO_Handle myGpio;
 PIE_Handle myPie;
 SCI_Handle mySci;
+PWM_Handle myPwm;
 
 #define FRAME_SIZE 256
 
@@ -259,6 +261,27 @@ uint8_t SPI_transfer_byte(uint8_t byte_out)
     return 0;//byte_in;
 }
 
+__interrupt void adc_isr(void)
+{
+	printf("Interrupt!");
+    //discard ADCRESULT0 as part of the workaround to the 1st sample errata for rev0
+    voltage[ConversionCount] = ADC_readResult(myAdc, ADC_ResultNumber_1);
+    //Voltage2[ConversionCount] = ADC_readResult(myAdc, ADC_ResultNumber_2);
+
+    if(ConversionCount == FRAME_SIZE)
+    {
+        ConversionCount = 0;
+    }
+    else ConversionCount++;
+
+    // Clear ADCINT1 flag reinitialize for next SOC
+    ADC_clearIntFlag(myAdc, ADC_IntNumber_1);
+    // Acknowledge interrupt to PIE
+    PIE_clearInt(myPie, PIE_GroupNumber_10);
+
+    return;
+}
+
 void main()
 {
     volatile int status = 0;
@@ -277,6 +300,7 @@ void main()
     myPie = PIE_init((void *)PIE_BASE_ADDR, sizeof(PIE_Obj));
     myPll = PLL_init((void *)PLL_BASE_ADDR, sizeof(PLL_Obj));
     mySci = SCI_init((void *)SCIA_BASE_ADDR, sizeof(SCI_Obj));
+    myPwm = PWM_init((void *)PWM_ePWM1_BASE_ADDR, sizeof(PWM_Obj));
     myWDog = WDOG_init((void *)WDOG_BASE_ADDR, sizeof(WDOG_Obj));
 
     // Perform basic system initialization
@@ -312,12 +336,50 @@ void main()
 
     // Initialize SCIA
     scia_init();
+    PIE_registerPieIntHandler(myPie, PIE_GroupNumber_10, PIE_SubGroupNumber_1, (intVec_t)&adc_isr);
 
-    // TODO: Initialize the ADC
+    //Initialize the ADC
+	ADC_enableBandGap(myAdc);
+	ADC_enableRefBuffers(myAdc);
+	ADC_powerUp(myAdc);
+	ADC_enable(myAdc);
+	ADC_setVoltRefSrc(myAdc, ADC_VoltageRefSrc_Int);
 
-    // Set the flash OTP wait-states to minimum. This is important
-    // for the performance of the temperature conversion function.
-    FLASH_setup(myFlash);
+	// Enable ADCINT1 in PIE
+	PIE_enableAdcInt(myPie, ADC_IntNumber_1);
+	// Enable CPU Interrupt 1
+	CPU_enableInt(myCpu, CPU_IntNumber_10);
+	// Enable Global interrupt INTM
+	CPU_enableGlobalInts(myCpu);
+	// Enable Global realtime interrupt DBGM
+	CPU_enableDebugInt(myCpu);
+
+    // Configure ADC
+    //Note: Channel ADCINA4  will be double sampled to workaround the ADC 1st sample issue for rev0 silicon errata
+    ADC_setIntPulseGenMode(myAdc, ADC_IntPulseGenMode_Prior);               //ADCINT1 trips after AdcResults latch
+    ADC_enableInt(myAdc, ADC_IntNumber_1);                                  //Enabled ADCINT1
+    ADC_setIntMode(myAdc, ADC_IntNumber_1, ADC_IntMode_ClearFlag);          //Disable ADCINT1 Continuous mode
+    ADC_setIntSrc(myAdc, ADC_IntNumber_1, ADC_IntSrc_EOC2);                 //setup EOC2 to trigger ADCINT1 to fire
+    ADC_setSocChanNumber (myAdc, ADC_SocNumber_0, ADC_SocChanNumber_A4);    //set SOC0 channel select to ADCINA4
+    ADC_setSocChanNumber (myAdc, ADC_SocNumber_1, ADC_SocChanNumber_A4);    //set SOC1 channel select to ADCINA4
+    ADC_setSocChanNumber (myAdc, ADC_SocNumber_2, ADC_SocChanNumber_A2);    //set SOC2 channel select to ADCINA2
+    ADC_setSocTrigSrc(myAdc, ADC_SocNumber_0, ADC_SocTrigSrc_EPWM1_ADCSOCA);    //set SOC0 start trigger on EPWM1A, due to round-robin SOC0 converts first then SOC1
+    ADC_setSocTrigSrc(myAdc, ADC_SocNumber_1, ADC_SocTrigSrc_EPWM1_ADCSOCA);    //set SOC1 start trigger on EPWM1A, due to round-robin SOC0 converts first then SOC1
+    ADC_setSocTrigSrc(myAdc, ADC_SocNumber_2, ADC_SocTrigSrc_EPWM1_ADCSOCA);    //set SOC2 start trigger on EPWM1A, due to round-robin SOC0 converts first then SOC1, then SOC2
+    ADC_setSocSampleWindow(myAdc, ADC_SocNumber_0, ADC_SocSampleWindow_7_cycles);   //set SOC0 S/H Window to 7 ADC Clock Cycles, (6 ACQPS plus 1)
+    ADC_setSocSampleWindow(myAdc, ADC_SocNumber_1, ADC_SocSampleWindow_7_cycles);   //set SOC1 S/H Window to 7 ADC Clock Cycles, (6 ACQPS plus 1)
+    ADC_setSocSampleWindow(myAdc, ADC_SocNumber_2, ADC_SocSampleWindow_7_cycles);   //set SOC2 S/H Window to 7 ADC Clock Cycles, (6 ACQPS plus 1)
+
+    // Enable PWM clock
+   CLK_enablePwmClock(myClk, PWM_Number_1);
+
+   // Setup PWM
+   PWM_enableSocAPulse(myPwm);                                         // Enable SOC on A group
+   PWM_setSocAPulseSrc(myPwm, PWM_SocPulseSrc_CounterEqualCmpAIncr);   // Select SOC from from CPMA on upcount
+   PWM_setSocAPeriod(myPwm, PWM_SocPeriod_FirstEvent);                 // Generate pulse on 1st event
+   PWM_setCmpA(myPwm, 0x0080);                                         // Set compare A value
+   PWM_setPeriod(myPwm, 0xFFFF);                                       // Set period for ePWM1
+   PWM_setCounterMode(myPwm, PWM_CounterMode_Up);                      // count up and start
 
     // Initalize GPIO
     GPIO_setPullUp(myGpio, GPIO_Number_28, GPIO_PullUp_Enable);
@@ -391,9 +453,12 @@ void main()
 
     //Main program loop - continually sample temperature
     for(;;) {
-        printf("Hello there dude!!"/* + Voltage1[0] + Voltage2[0] + Frame[0]*/);
-
-        DELAY_US(1000000);
+        printf("Conversion Count is %d \n", ConversionCount/* + Voltage1[0] + Voltage2[0] + Frame[0]*/);
+        if (ConversionCount == FRAME_SIZE)
+        {
+        	printf("Full");
+        }
+        DELAY_US(100000);
 
     }
 }
