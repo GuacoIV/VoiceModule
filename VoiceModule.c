@@ -52,12 +52,12 @@
 //  This program is the demo program that comes pre-loaded on the controlPad
 //  development kit.  The program starts by flashing the 4 bit binary display.
 //  When the user pushes S3 (GPIO12) the demo then stops flashing the display
-//  and samples the device's internal temperature sensor to establish a 
-//  reference.  After this, the board displays a value of 0x08 and displays 
+//  and samples the device's internal temperature sensor to establish a
+//  reference.  After this, the board displays a value of 0x08 and displays
 //  any increase or decrease in temperature as a delta on the display.  So for
 //  instance if the temperature was initially 20C and now it is 22C, the value
 //  on the display would be 22C - 20C + 8 = 10 = 0x0A = 0b1010.  Additionally,
-//  the reference temperature may be reset to the current value by pressing 
+//  the reference temperature may be reset to the current value by pressing
 //  and holding S3.
 //
 //    Watch Variables
@@ -125,20 +125,20 @@ int16_t sampleTemperature(void)
 
     // Get temp sensor sample result from SOC1
     return (ADC_readResult(myAdc, ADC_ResultNumber_1));
-    
+
 }
 
 void drawTILogo(void)
 {
     unsigned char ucChar, lastChar;
-    
+
     putchar('\n');
     while(indexY<45)
     {
         if(indexY<45){
             if(indexX<77){
                 ucChar = ti_ascii[indexY][indexX++] ;
-                
+
                 //We are in the TI logo make it red
                 if(ucChar != '7' && lastChar=='7'){
                     putchar(escRed[0]);
@@ -147,7 +147,7 @@ void drawTILogo(void)
                     putchar(escRed[3]);
                     putchar(escRed[4]);
                 }
-                    
+
                 //We are in the TI logo make it red
                 if(ucChar == '7' && lastChar!='7'){
                     putchar(escWhite[0]);
@@ -156,7 +156,7 @@ void drawTILogo(void)
                     putchar(escWhite[3]);
                     putchar(escWhite[4]);
                 }
-                    
+
                 putchar(ucChar);
                 lastChar = ucChar;
             }else{
@@ -173,49 +173,49 @@ void drawTILogo(void)
 
 void clearTextBox(void)
 {
-    
+
     putchar(0x08);
-    
+
     // Move back 24 columns
     putchar(0x1B);
     putchar('[');
     putchar('2');
     putchar('6');
     putchar('D');
-    
+
     // Move up 3 lines
     putchar(0x1B);
     putchar('[');
     putchar('3');
     putchar('A');
-    
+
     //Change to Red text
     putchar(escRed[0]);
     putchar(escRed[1]);
     putchar(escRed[2]);
     putchar(escRed[3]);
     putchar(escRed[4]);
-    
+
     printf((char*)pucTempString);
-    
+
     // Move down 1 lines
     putchar(0x1B);
     putchar('[');
     putchar('1');
     putchar('B');
-    
+
     // Move back 20 columns
     putchar(0x1B);
     putchar('[');
     putchar('2');
     putchar('0');
     putchar('D');
-    
+
     // Save cursor position
     putchar(0x1B);
     putchar('[');
     putchar('s');
-    
+
 }
 
 void updateTemperature(void)
@@ -224,9 +224,9 @@ void updateTemperature(void)
     putchar(0x1B);
     putchar('[');
     putchar('u');
-    
+
     printf("%d Celcius = Ref + %d ", currentTemp, (currentTemp - referenceTemp));
-    
+
 }
 
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
@@ -241,7 +241,7 @@ void scia_init()
     SCI_disableParity(mySci);
     SCI_setNumStopBits(mySci, SCI_NumStopBits_One);
     SCI_setCharLength(mySci, SCI_CharLength_8_Bits);
-    
+
     SCI_enableTx(mySci);
     SCI_enableRx(mySci);
     SCI_enableTxInt(mySci);
@@ -250,7 +250,7 @@ void scia_init()
     // SCI BRR = LSPCLK/(SCI BAUDx8) - 1
     // Configured for 115.2kbps
 #if (CPU_FRQ_60MHZ)
-    SCI_setBaudRate(mySci, SCI_BaudRate_115_2_kBaud);    
+    SCI_setBaudRate(mySci, SCI_BaudRate_115_2_kBaud);
 #elif (CPU_FRQ_50MHZ)
     SCI_setBaudRate(mySci, (SCI_BaudRate_e)13);
 #elif (CPU_FRQ_40MHZ)
@@ -268,22 +268,60 @@ void scia_init()
     SCI_setRxFifoIntLevel(mySci, SCI_FifoLevel_4_Words);
 
     SCI_setPriority(mySci, SCI_Priority_FreeRun);
-    
+
     SCI_enable(mySci);
-  
+
     return;
+}
+
+/*
+ * Simultaneously transmit and receive a byte on the SPI.
+ *
+ * Polarity and phase are assumed to be both 0, i.e.:
+ *   - input data is captured on rising edge of SCLK.
+ *   - output data is propagated on falling edge of SCLK.
+ *
+ * Returns the received byte.
+ */
+uint8_t SPI_transfer_byte(uint8_t byte_out)
+{
+    uint8_t byte_in = 0;
+    uint8_t bit;
+
+//    for (bit = 0x80; bit; bit >>= 1) {
+//       /* Shift-out a bit to the MOSI line */
+//        write_MOSI((byte_out & bit) ? HIGH : LOW);
+//
+//        /* Delay for at least the peer's setup time */
+//        delay(SPI_SCLK_LOW_TIME);
+//
+//        /* Pull the clock line high */
+//        write_SCLK(HIGH);
+//
+//        /* Shift-in a bit from the MISO line */
+//        if (read_MISO() == HIGH)
+//           byte_in |= bit;
+//
+//        /* Delay for at least the peer's hold time */
+//        delay(SPI_SCLK_HIGH_TIME);
+//
+//        /* Pull the clock line low */
+//        write_SCLK(LOW);
+//    }
+
+    return byte_in;
 }
 
 void main()
 {
     volatile int status = 0;
     volatile FILE *fid;
-    
+
     CPU_Handle myCpu;
     PLL_Handle myPll;
     WDOG_Handle myWDog;
-    
-    // Initialize all the handles needed for this application    
+
+    // Initialize all the handles needed for this application
     myAdc = ADC_init((void *)ADC_BASE_ADDR, sizeof(ADC_Obj));
     myClk = CLK_init((void *)CLK_BASE_ADDR, sizeof(CLK_Obj));
     myCpu = CPU_init((void *)NULL, sizeof(CPU_Obj));
@@ -294,27 +332,27 @@ void main()
     mySci = SCI_init((void *)SCIA_BASE_ADDR, sizeof(SCI_Obj));
     myWDog = WDOG_init((void *)WDOG_BASE_ADDR, sizeof(WDOG_Obj));
 
-    // Perform basic system initialization    
+    // Perform basic system initialization
     WDOG_disable(myWDog);
     CLK_enableAdcClock(myClk);
     (*Device_cal)();
-    
+
     //Select the internal oscillator 1 as the clock source
     CLK_setOscSrc(myClk, CLK_OscSrc_Internal);
-    
+
     // Setup the PLL for x10 /2 which will yield 50Mhz = 10Mhz * 10 / 2
     PLL_setup(myPll, PLL_Multiplier_12, PLL_DivideSelect_ClkIn_by_2);
-    
+
     // Disable the PIE and all interrupts
     PIE_disable(myPie);
     PIE_disableAllInts(myPie);
     CPU_disableGlobalInts(myCpu);
     CPU_clearIntFlags(myCpu);
-        
-    // If running from flash copy RAM only functions to RAM   
+
+    // If running from flash copy RAM only functions to RAM
 #ifdef _FLASH
     memcpy(&RamfuncsRunStart, &RamfuncsLoadStart, (size_t)&RamfuncsLoadSize);
-#endif      
+#endif
 
     // Initalize GPIO
     // Enable XCLOCKOUT to allow monitoring of oscillator 1
@@ -323,11 +361,11 @@ void main()
 
     // Setup a debug vector table and enable the PIE
     PIE_setDebugIntVectorTable(myPie);
-    PIE_enable(myPie);   
+    PIE_enable(myPie);
 
     // Initialize SCIA
     scia_init();
-    
+
     // Initialize the ADC
     ADC_enableBandGap(myAdc);
     ADC_enableRefBuffers(myAdc);
@@ -353,34 +391,34 @@ void main()
     GPIO_setQualification(myGpio, GPIO_Number_28, GPIO_Qual_ASync);
     GPIO_setMode(myGpio, GPIO_Number_28, GPIO_28_Mode_SCIRXDA);
     GPIO_setMode(myGpio, GPIO_Number_29, GPIO_29_Mode_SCITXDA);
-    
+
     // Configure GPIO 0-3 as outputs
     GPIO_setMode(myGpio, GPIO_Number_0, GPIO_0_Mode_GeneralPurpose);
     GPIO_setMode(myGpio, GPIO_Number_1, GPIO_0_Mode_GeneralPurpose);
     GPIO_setMode(myGpio, GPIO_Number_2, GPIO_0_Mode_GeneralPurpose);
     GPIO_setMode(myGpio, GPIO_Number_3, GPIO_0_Mode_GeneralPurpose);
-    
+
     GPIO_setDirection(myGpio, GPIO_Number_0, GPIO_Direction_Output);
     GPIO_setDirection(myGpio, GPIO_Number_1, GPIO_Direction_Output);
     GPIO_setDirection(myGpio, GPIO_Number_2, GPIO_Direction_Output);
     GPIO_setDirection(myGpio, GPIO_Number_3, GPIO_Direction_Output);
-    
+
     GPIO_setMode(myGpio, GPIO_Number_12, GPIO_12_Mode_GeneralPurpose);
     GPIO_setDirection(myGpio, GPIO_Number_12, GPIO_Direction_Input);
     GPIO_setPullUp(myGpio, GPIO_Number_12, GPIO_PullUp_Disable);
-    
+
     //Redirect STDOUT to SCI
     status = add_device("scia", _SSA, SCI_open, SCI_close, SCI_read, SCI_write, SCI_lseek, SCI_unlink, SCI_rename);
     fid = fopen("scia","w");
     freopen("scia:", "w", stdout);
     setvbuf(stdout, NULL, _IONBF, 0);
-    
+
     //Print a TI Logo to STDOUT
     drawTILogo();
-        
+
     //Scan the LEDs until the pushbutton is pressed
     while(GPIO_getData(myGpio, GPIO_Number_12) != 1)
-    {       
+    {
         GPIO_setHigh(myGpio, GPIO_Number_0);
         GPIO_setHigh(myGpio, GPIO_Number_1);
         GPIO_setHigh(myGpio, GPIO_Number_2);
@@ -405,34 +443,34 @@ void main()
         GPIO_setHigh(myGpio, GPIO_Number_3);
         DELAY_US(500000);
     }
-    
+
     //Clear out one of the text boxes so we can write more info to it
     clearTextBox();
-    
+
     // Sample the temperature and save it as our reference
     referenceTemp = ADC_getTemperatureC(myAdc, sampleTemperature());
-    
+
     // Light up the binary display with a median value (0x08)
     GPIO_setPortData(myGpio, GPIO_Port_A, (~0x08) & 0x0F);
-    
+
 
     //Main program loop - continually sample temperature
     for(;;) {
-        
+
         // Convert the raw temperature sensor measurement into temperature
         currentTemp = ADC_getTemperatureC(myAdc, sampleTemperature());
-        
+
         updateTemperature();
         printf("Hello there!");
         GPIO_setPortData(myGpio, GPIO_Port_A, (~(0x08 + (currentTemp - referenceTemp))) & 0x0F);
-        
+
         DELAY_US(1000000);
-        
+
         if(GPIO_getData(myGpio, GPIO_Number_12) == 1) {
-            
+
             referenceTemp = ADC_getTemperatureC(myAdc, sampleTemperature());
         }
-        
+
     }
 }
 

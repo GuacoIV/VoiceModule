@@ -1,7 +1,7 @@
 ******************************************************************************
              TMS320C2000 Linker PC v6.2.8                      
 ******************************************************************************
->> Linked Tue Oct 07 21:20:33 2014
+>> Linked Tue Oct 07 21:36:37 2014
 
 OUTPUT FILE NAME:   <Example_F2802xLaunchPad_demo.out>
 ENTRY POINT SYMBOL: "code_start"  address: 003f7ff6
