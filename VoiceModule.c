@@ -263,7 +263,6 @@ uint8_t SPI_transfer_byte(uint8_t byte_out)
 
 __interrupt void adc_isr(void)
 {
-	printf("Interrupt!");
     //discard ADCRESULT0 as part of the workaround to the 1st sample errata for rev0
     voltage[ConversionCount] = ADC_readResult(myAdc, ADC_ResultNumber_1);
     //Voltage2[ConversionCount] = ADC_readResult(myAdc, ADC_ResultNumber_2);
@@ -306,6 +305,8 @@ void main()
     // Perform basic system initialization
     WDOG_disable(myWDog);
     CLK_enableAdcClock(myClk);
+    CLK_enableTbClockSync(myClk);
+    CLK_enablePwmClock(myClk, PWM_Number_1);
     (*Device_cal)();
 
     //Select the internal oscillator 1 as the clock source
@@ -458,7 +459,7 @@ void main()
         {
         	printf("Full");
         }
-        DELAY_US(100000);
+        //DELAY_US(100000);
 
     }
 }
