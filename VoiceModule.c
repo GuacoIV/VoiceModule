@@ -82,9 +82,12 @@ PIE_Handle myPie;
 SCI_Handle mySci;
 PWM_Handle myPwm;
 
+CPU_Handle myCpu;
+
 #define FRAME_SIZE 256
 
 int ConversionCount = 0;
+int totalCount = 0;
 int16_t voltage[FRAME_SIZE];
 int16_t frame[FRAME_SIZE];
 
@@ -261,15 +264,43 @@ uint8_t SPI_transfer_byte(uint8_t byte_out)
     return 0;//byte_in;
 }
 
+void fullFrame()
+{
+	int i = 0;
+	for (i = 0; i < FRAME_SIZE; i++)
+	{
+		frame[i] = voltage[i];
+		//Detect Jenkins now...
+	}
+}
+
 __interrupt void adc_isr(void)
 {
     //discard ADCRESULT0 as part of the workaround to the 1st sample errata for rev0
+	//TODO: Subtract DC Bias
     voltage[ConversionCount] = ADC_readResult(myAdc, ADC_ResultNumber_1);
+    totalCount++;
     //Voltage2[ConversionCount] = ADC_readResult(myAdc, ADC_ResultNumber_2);
+
+    if (totalCount == 256)
+    {
+    	// Disable the PIE and all interrupts
+	   PIE_disable(myPie);
+	   PIE_disableAllInts(myPie);
+	   CPU_disableGlobalInts(myCpu);
+	   CPU_clearIntFlags(myCpu);
+
+	   int i;
+	   for (i = 0; i < 256; i++)
+	   {
+		   printf("%d, ", voltage[i]);
+	   }
+    }
 
     if(ConversionCount == FRAME_SIZE)
     {
-    	printf("Voltage is %d", voltage[ConversionCount]);
+
+    	//fullFrame();
         ConversionCount = 0;
     }
     else ConversionCount++;
@@ -281,6 +312,8 @@ __interrupt void adc_isr(void)
 
     return;
 }
+
+
 
 void main()
 {
@@ -383,11 +416,12 @@ void main()
    CLK_enablePwmClock(myClk, PWM_Number_1);
 
    // Setup PWM
+   //30MHz / 680 = 44.1 kHz
    PWM_enableSocAPulse(myPwm);                                         // Enable SOC on A group
    PWM_setSocAPulseSrc(myPwm, PWM_SocPulseSrc_CounterEqualCmpAIncr);   // Select SOC from from CPMA on upcount
    PWM_setSocAPeriod(myPwm, PWM_SocPeriod_FirstEvent);                 // Generate pulse on 1st event
    PWM_setCmpA(myPwm, 0x0080);                                         // Set compare A value
-   PWM_setPeriod(myPwm, 0xFFFF);                                       // Set period for ePWM1
+   PWM_setPeriod(myPwm, 680);                                       // Set period for ePWM1
    PWM_setCounterMode(myPwm, PWM_CounterMode_Up);                      // count up and start
 
     // Initalize GPIO
@@ -420,7 +454,7 @@ void main()
     setvbuf(stdout, NULL, _IONBF, 0);
 
     //Print a TI Logo to STDOUT
-    drawTILogo();
+    //drawTILogo();
 
     //Scan the LEDs until the pushbutton is pressed
     while(GPIO_getData(myGpio, GPIO_Number_12) != 1)
@@ -451,18 +485,16 @@ void main()
     }
 
     //Clear out one of the text boxes so we can write more info to it
-    clearTextBox();
+    //clearTextBox();
 
     //Main program loop - continually sample temperature
-    for(;;) {
-       // printf("Conversion Count is %d \n", ConversionCount/* + Voltage1[0] + Voltage2[0] + Frame[0]*/);
-        if (ConversionCount == FRAME_SIZE)
-        {
-        	//printf("Full");
-        }
-        //DELAY_US(100000);
+    while (totalCount < 44100)
+    {
+       // DELAY_US(100000);
+    	//printf("total Count is %d", totalCount);
 
     }
+
 }
 
 
