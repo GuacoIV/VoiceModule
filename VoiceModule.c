@@ -269,6 +269,7 @@ __interrupt void adc_isr(void)
 
     if(ConversionCount == FRAME_SIZE)
     {
+    	printf("Voltage is %d", voltage[ConversionCount]);
         ConversionCount = 0;
     }
     else ConversionCount++;
@@ -289,6 +290,13 @@ void main()
     CPU_Handle myCpu;
     PLL_Handle myPll;
     WDOG_Handle myWDog;
+
+    int i;
+	for(i = 0; i < FRAME_SIZE; i++)
+	{
+		voltage[i] = 0;
+		frame[i] = 0;
+	}
 
     // Initialize all the handles needed for this application
     myAdc = ADC_init((void *)ADC_BASE_ADDR, sizeof(ADC_Obj));
@@ -445,19 +453,12 @@ void main()
     //Clear out one of the text boxes so we can write more info to it
     clearTextBox();
 
-    int i;
-    for(i = 0; i < FRAME_SIZE; i++)
-    {
-    	voltage[i] = 0;
-    	frame[i] = 0;
-    }
-
     //Main program loop - continually sample temperature
     for(;;) {
-        printf("Conversion Count is %d \n", ConversionCount/* + Voltage1[0] + Voltage2[0] + Frame[0]*/);
+       // printf("Conversion Count is %d \n", ConversionCount/* + Voltage1[0] + Voltage2[0] + Frame[0]*/);
         if (ConversionCount == FRAME_SIZE)
         {
-        	printf("Full");
+        	//printf("Full");
         }
         //DELAY_US(100000);
 
