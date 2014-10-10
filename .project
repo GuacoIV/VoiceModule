@@ -101,5 +101,9 @@
 			<name>ORIGINAL_PROJECT_ROOT</name>
 			<value>file:/C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_examples/C2kLaunchPadDemo/</value>
 		</variable>
+		<variable>
+			<name>SRC_ROOT</name>
+			<value>$%7BPARENT-3-PROJECT_LOC%7D/OneDrive/LSU/Senior%20Year/EE%204810%20-%20Senior%20Design%20I/Technical%20Documents/Using%20PWM%20as%20DAC/spraa88a</value>
+		</variable>
 	</variableList>
 </projectDescription>

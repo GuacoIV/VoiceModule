@@ -84,12 +84,13 @@ PWM_Handle myPwm;
 
 CPU_Handle myCpu;
 
-#define FRAME_SIZE 256
+#define FRAME_SIZE 800
 
 int ConversionCount = 0;
 int totalCount = 0;
 int16_t voltage[FRAME_SIZE];
-int16_t frame[FRAME_SIZE];
+//int16_t frame[FRAME_SIZE];
+bool printInfo = true;
 
 void drawTILogo(void)
 {
@@ -269,7 +270,7 @@ void fullFrame()
 	int i = 0;
 	for (i = 0; i < FRAME_SIZE; i++)
 	{
-		frame[i] = voltage[i];
+		//frame[i] = voltage[i];
 		//Detect Jenkins now...
 	}
 }
@@ -278,11 +279,12 @@ __interrupt void adc_isr(void)
 {
     //discard ADCRESULT0 as part of the workaround to the 1st sample errata for rev0
 	//TODO: Subtract DC Bias
-    voltage[ConversionCount] = ADC_readResult(myAdc, ADC_ResultNumber_1);
+    int a = ADC_readResult(myAdc, ADC_ResultNumber_1);
+    int b = ADC_readResult(myAdc, ADC_ResultNumber_2);
     totalCount++;
-    //Voltage2[ConversionCount] = ADC_readResult(myAdc, ADC_ResultNumber_2);
+    voltage[ConversionCount] = (a+b)/2;
 
-    if (totalCount == 256)
+    if (totalCount == FRAME_SIZE && printInfo)
     {
     	// Disable the PIE and all interrupts
 	   PIE_disable(myPie);
@@ -291,10 +293,11 @@ __interrupt void adc_isr(void)
 	   CPU_clearIntFlags(myCpu);
 
 	   int i;
-	   for (i = 0; i < 256; i++)
+	   for (i = 0; i < FRAME_SIZE; i++)
 	   {
 		   printf("%d, ", voltage[i]);
 	   }
+	   printInfo = false;
     }
 
     if(ConversionCount == FRAME_SIZE)
@@ -328,7 +331,7 @@ void main()
 	for(i = 0; i < FRAME_SIZE; i++)
 	{
 		voltage[i] = 0;
-		frame[i] = 0;
+		//frame[i] = 0;
 	}
 
     // Initialize all the handles needed for this application
@@ -457,7 +460,7 @@ void main()
     //drawTILogo();
 
     //Scan the LEDs until the pushbutton is pressed
-    while(GPIO_getData(myGpio, GPIO_Number_12) != 1)
+    /*while(GPIO_getData(myGpio, GPIO_Number_12) != 1)
     {
         GPIO_setHigh(myGpio, GPIO_Number_0);
         GPIO_setHigh(myGpio, GPIO_Number_1);
@@ -482,15 +485,23 @@ void main()
         GPIO_setHigh(myGpio, GPIO_Number_2);
         GPIO_setHigh(myGpio, GPIO_Number_3);
         DELAY_US(500000);
-    }
+    }*/
 
     //Clear out one of the text boxes so we can write more info to it
     //clearTextBox();
 
     //Main program loop - continually sample temperature
-    while (totalCount < 44100)
+    for(;;)
     {
        // DELAY_US(100000);
+    	if (GPIO_getData(myGpio, GPIO_Number_12) ==1)
+    	{
+    		totalCount = 0;
+    		ConversionCount = 0;
+    		printf("Reset");
+    		printInfo = true;
+
+    	}
     	//printf("total Count is %d", totalCount);
 
     }

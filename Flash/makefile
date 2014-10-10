@@ -8,6 +8,7 @@ CG_TOOL_ROOT := c:/ti/ccsv6/tools/compiler/c2000_6.2.8
 
 ORDERED_OBJS += \
 $(GEN_CMDS__FLAG) \
+"./Sin256Q15.obj" \
 "./VoiceModule.obj" \
 "C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_headers/cmd/F2802x_Headers_nonBIOS.cmd" \
 "C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/lib/driverlib.lib" \
@@ -143,8 +144,8 @@ VoiceModule.hex: $(EXE_OUTPUTS)
 # Other Targets
 clean:
 	-$(RM) $(EXE_OUTPUTS__QUOTED)$(BIN_OUTPUTS__QUOTED)
-	-$(RM) "VoiceModule.pp" 
-	-$(RM) "VoiceModule.obj" 
+	-$(RM) "Sin256Q15.pp" "VoiceModule.pp" 
+	-$(RM) "Sin256Q15.obj" "VoiceModule.obj" 
 	-@echo 'Finished clean'
 	-@echo ' '
 
