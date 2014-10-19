@@ -44,6 +44,8 @@
 //   Reset the device, and Run example
 //
 //   $End_Boot_Table
+//	 EPWM2A is on GPIO2
+//   EPWM2B is on GPIO3
 
 #include <stdio.h>
 #include <file.h>
@@ -65,6 +67,8 @@ __interrupt void adc_isr(void);
 void Adc_Config(void);
 
 extern void DSP28x_usDelay(Uint32 Count);
+extern const float sine256Q15[];
+extern void WriteDac(Uint16 channel, int16 duty_frac);
 
 static unsigned short indexX=0;
 static unsigned short indexY=0;
@@ -80,17 +84,40 @@ FLASH_Handle myFlash;
 GPIO_Handle myGpio;
 PIE_Handle myPie;
 SCI_Handle mySci;
-PWM_Handle myPwm;
+PWM_Handle myPwm, myPwm2;
 
 CPU_Handle myCpu;
 
-#define FRAME_SIZE 800
+typedef struct
+{
+//    volatile struct EPWM_REGS *EPwmRegHandle;
+    PWM_Handle myPwmHandle;
+    uint16_t EPwm_CMPA_Direction;
+    uint16_t EPwm_CMPB_Direction;
+    uint16_t EPwmTimerIntCount;
+    uint16_t EPwmMaxCMPA;
+    uint16_t EPwmMinCMPA;
+    uint16_t EPwmMaxCMPB;
+    uint16_t EPwmMinCMPB;
+}EPWM_INFO;
+
+EPWM_INFO epwm2_info;
+
+#define FRAME_SIZE 256
+
+#define EPWM2_TIMER_TBPRD    10  // Period register
+#define EPWM2_MAX_CMPA      9.5
+#define EPWM2_MIN_CMPA        0
+#define EPWM2_MAX_CMPB      9.5
+#define EPWM2_MIN_CMPB        0
+
+#define EPWM_CMP_UP   1
+#define EPWM_CMP_DOWN 0
 
 int ConversionCount = 0;
 int totalCount = 0;
 int16_t voltage[FRAME_SIZE];
-//int16_t frame[FRAME_SIZE];
-bool printInfo = true;
+int16_t frame[FRAME_SIZE];
 
 void drawTILogo(void)
 {
@@ -133,53 +160,6 @@ void drawTILogo(void)
             }
         }
     }
-}
-
-void clearTextBox(void)
-{
-
-    putchar(0x08);
-
-    // Move back 24 columns
-    putchar(0x1B);
-    putchar('[');
-    putchar('2');
-    putchar('6');
-    putchar('D');
-
-    // Move up 3 lines
-    putchar(0x1B);
-    putchar('[');
-    putchar('3');
-    putchar('A');
-
-    //Change to Red text
-    putchar(escRed[0]);
-    putchar(escRed[1]);
-    putchar(escRed[2]);
-    putchar(escRed[3]);
-    putchar(escRed[4]);
-
-    printf((char*)pucTempString);
-
-    // Move down 1 lines
-    putchar(0x1B);
-    putchar('[');
-    putchar('1');
-    putchar('B');
-
-    // Move back 20 columns
-    putchar(0x1B);
-    putchar('[');
-    putchar('2');
-    putchar('0');
-    putchar('D');
-
-    // Save cursor position
-    putchar(0x1B);
-    putchar('[');
-    putchar('s');
-
 }
 
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
@@ -270,7 +250,7 @@ void fullFrame()
 	int i = 0;
 	for (i = 0; i < FRAME_SIZE; i++)
 	{
-		//frame[i] = voltage[i];
+		frame[i] = voltage[i];
 		//Detect Jenkins now...
 	}
 }
@@ -284,9 +264,10 @@ __interrupt void adc_isr(void)
     totalCount++;
     voltage[ConversionCount] = (a+b)/2;
 
-    if (totalCount == FRAME_SIZE && printInfo)
+    if (totalCount == FRAME_SIZE)
     {
     	// Disable the PIE and all interrupts
+    	//TODO: Remove this after we want continuous frames
 	   PIE_disable(myPie);
 	   PIE_disableAllInts(myPie);
 	   CPU_disableGlobalInts(myCpu);
@@ -297,13 +278,11 @@ __interrupt void adc_isr(void)
 	   {
 		   printf("%d, ", voltage[i]);
 	   }
-	   printInfo = false;
     }
 
     if(ConversionCount == FRAME_SIZE)
     {
-
-    	//fullFrame();
+    	fullFrame();
         ConversionCount = 0;
     }
     else ConversionCount++;
@@ -314,6 +293,145 @@ __interrupt void adc_isr(void)
     PIE_clearInt(myPie, PIE_GroupNumber_10);
 
     return;
+}
+
+void update_compare(EPWM_INFO *epwm_info)
+{
+    // Every 10'th interrupt, change the CMPA/CMPB values
+    if(epwm_info->EPwmTimerIntCount == 1) {
+        epwm_info->EPwmTimerIntCount = 0;
+
+        // If we were increasing CMPA, check to see if
+        // we reached the max value.  If not, increase CMPA
+        // else, change directions and decrease CMPA
+        if(epwm_info->EPwm_CMPA_Direction == EPWM_CMP_UP) {
+            if(PWM_getCmpA(epwm_info->myPwmHandle) < epwm_info->EPwmMaxCMPA) {
+                PWM_setCmpA(epwm_info->myPwmHandle, PWM_getCmpA(epwm_info->myPwmHandle) + 1);
+            }
+            else {
+                epwm_info->EPwm_CMPA_Direction = EPWM_CMP_DOWN;
+                PWM_setCmpA(epwm_info->myPwmHandle, PWM_getCmpA(epwm_info->myPwmHandle) - 1);
+            }
+        }
+
+        // If we were decreasing CMPA, check to see if
+        // we reached the min value.  If not, decrease CMPA
+        // else, change directions and increase CMPA
+        else {
+            if(PWM_getCmpA(epwm_info->myPwmHandle) == epwm_info->EPwmMinCMPA) {
+                epwm_info->EPwm_CMPA_Direction = EPWM_CMP_UP;
+                PWM_setCmpA(epwm_info->myPwmHandle, PWM_getCmpA(epwm_info->myPwmHandle) + 1);
+            }
+            else {
+                PWM_setCmpA(epwm_info->myPwmHandle, PWM_getCmpA(epwm_info->myPwmHandle) - 1);
+            }
+        }
+
+        // If we were increasing CMPB, check to see if
+        // we reached the max value.  If not, increase CMPB
+        // else, change directions and decrease CMPB
+        if(epwm_info->EPwm_CMPB_Direction == EPWM_CMP_UP) {
+            if(PWM_getCmpB(epwm_info->myPwmHandle) < epwm_info->EPwmMaxCMPB) {
+                PWM_setCmpB(epwm_info->myPwmHandle, PWM_getCmpB(epwm_info->myPwmHandle) + 1);
+            }
+            else {
+                epwm_info->EPwm_CMPB_Direction = EPWM_CMP_DOWN;
+                PWM_setCmpB(epwm_info->myPwmHandle, PWM_getCmpB(epwm_info->myPwmHandle) - 1);
+            }
+        }
+
+        // If we were decreasing CMPB, check to see if
+        // we reached the min value.  If not, decrease CMPB
+        // else, change directions and increase CMPB
+
+        else {
+            if(PWM_getCmpB(epwm_info->myPwmHandle) == epwm_info->EPwmMinCMPB) {
+                epwm_info->EPwm_CMPB_Direction = EPWM_CMP_UP;
+                PWM_setCmpB(epwm_info->myPwmHandle, PWM_getCmpB(epwm_info->myPwmHandle) + 1);
+            }
+            else {
+                PWM_setCmpB(epwm_info->myPwmHandle, PWM_getCmpB(epwm_info->myPwmHandle) - 1);
+            }
+        }
+    }
+    else {
+        epwm_info->EPwmTimerIntCount++;
+    }
+
+    return;
+}
+
+interrupt void epwm2_isr(void)
+{
+
+    // Update the CMPA and CMPB values
+    update_compare(&epwm2_info);
+
+	// Output a sine wave
+   // static Uint16 i = 0;
+    //Uint16 DAC1_frac;
+	//DAC1_frac = sine256Q15[i];						// Read sine wave table
+	//WriteDac(1, DAC1_frac);					// Write to the DAC
+	//i++;											// Increment the index
+	//i &= 0xFF;
+
+    // Clear INT flag for this timer
+    PWM_clearIntFlag(myPwm2);
+
+    // Acknowledge this interrupt to receive more interrupts from group 3
+    PIE_clearInt(myPie, PIE_GroupNumber_3);
+}
+
+void InitEPwm2()
+{
+    CLK_enablePwmClock(myClk, PWM_Number_2);
+
+    // Setup TBCLK
+    PWM_setPeriod(myPwm2, EPWM2_TIMER_TBPRD);   // Set timer period 801 TBCLKs
+    PWM_setPhase(myPwm2, 0x0000);               // Phase is 0
+    PWM_setCount(myPwm2, 0x0000);               // Clear counter
+
+    // Set Compare values
+    PWM_setCmpA(myPwm2, EPWM2_MIN_CMPA);        // Set compare A value
+    PWM_setCmpB(myPwm2, EPWM2_MIN_CMPB);        // Set Compare B value
+
+    // Setup counter mode
+    PWM_setCounterMode(myPwm2, PWM_CounterMode_UpDown); // Count up
+    PWM_disableCounterLoad(myPwm2);                     // Disable phase loading
+    PWM_setHighSpeedClkDiv(myPwm2, PWM_HspClkDiv_by_1); // Clock ratio to SYSCLKOUT
+    PWM_setClkDiv(myPwm2, PWM_ClkDiv_by_1);
+
+    // Setup shadowing
+    PWM_setShadowMode_CmpA(myPwm2, PWM_ShadowMode_Shadow);
+    PWM_setShadowMode_CmpB(myPwm2, PWM_ShadowMode_Shadow);
+    PWM_setLoadMode_CmpA(myPwm2, PWM_LoadMode_Zero);
+    PWM_setLoadMode_CmpB(myPwm2, PWM_LoadMode_Zero);
+
+
+    // Set actions
+    PWM_setActionQual_CntUp_CmpA_PwmA(myPwm2, PWM_ActionQual_Set);      // Set PWM2A on event A, up count
+    PWM_setActionQual_CntDown_CmpB_PwmA(myPwm2, PWM_ActionQual_Clear);  // Clear PWM2A on event B, down count
+
+    PWM_setActionQual_Zero_PwmB(myPwm2, PWM_ActionQual_Set);            // Clear PWM2B on zero
+    PWM_setActionQual_Period_PwmB(myPwm2, PWM_ActionQual_Clear);        // Set PWM2B on period
+
+    // Interrupt where we will change the Compare Values
+    PWM_setIntMode(myPwm2, PWM_IntMode_CounterEqualZero);   // Select INT on Zero event
+    PWM_enableInt(myPwm2);                                  // Enable INT
+    PWM_setIntPeriod(myPwm2, PWM_IntPeriod_ThirdEvent);     // Generate INT on 3rd event
+
+    // Information this example uses to keep track
+    // of the direction the CMPA/CMPB values are
+    // moving, the min and max allowed values and
+    // a pointer to the correct ePWM registers
+    epwm2_info.EPwm_CMPA_Direction = EPWM_CMP_UP;   // Start by increasing CMPA &
+    epwm2_info.EPwm_CMPB_Direction = EPWM_CMP_UP;   // increasing CMPB
+    epwm2_info.EPwmTimerIntCount = 0;               // Zero the interrupt counter
+    epwm2_info.myPwmHandle = myPwm2;                // Set the pointer to the ePWM module
+    epwm2_info.EPwmMaxCMPA = EPWM2_MAX_CMPA;        // Setup min/max CMPA/CMPB values
+    epwm2_info.EPwmMinCMPA = EPWM2_MIN_CMPA;
+    epwm2_info.EPwmMaxCMPB = EPWM2_MAX_CMPB;
+    epwm2_info.EPwmMinCMPB = EPWM2_MIN_CMPB;
 }
 
 
@@ -344,6 +462,7 @@ void main()
     myPll = PLL_init((void *)PLL_BASE_ADDR, sizeof(PLL_Obj));
     mySci = SCI_init((void *)SCIA_BASE_ADDR, sizeof(SCI_Obj));
     myPwm = PWM_init((void *)PWM_ePWM1_BASE_ADDR, sizeof(PWM_Obj));
+    myPwm2 = PWM_init((void *) PWM_ePWM2_BASE_ADDR, sizeof(PWM_Obj));
     myWDog = WDOG_init((void *)WDOG_BASE_ADDR, sizeof(WDOG_Obj));
 
     // Perform basic system initialization
@@ -357,6 +476,7 @@ void main()
     CLK_setOscSrc(myClk, CLK_OscSrc_Internal);
 
     // Setup the PLL for x10 /2 which will yield 50Mhz = 10Mhz * 10 / 2
+    // PLL = Phase Locked Loop
     PLL_setup(myPll, PLL_Multiplier_12, PLL_DivideSelect_ClkIn_by_2);
 
     // Disable the PIE and all interrupts
@@ -418,13 +538,13 @@ void main()
     // Enable PWM clock
    CLK_enablePwmClock(myClk, PWM_Number_1);
 
-   // Setup PWM
+   // Setup PWM for ADC interrupt trigger
    //30MHz / 680 = 44.1 kHz
-   PWM_enableSocAPulse(myPwm);                                         // Enable SOC on A group
-   PWM_setSocAPulseSrc(myPwm, PWM_SocPulseSrc_CounterEqualCmpAIncr);   // Select SOC from from CPMA on upcount
+   PWM_enableSocAPulse(myPwm);                                         // Enable SOC on A group.  SOC = start of conversion
+   PWM_setSocAPulseSrc(myPwm, PWM_SocPulseSrc_CounterEqualCmpAIncr);   // Select SOC from CPMA on upcount
    PWM_setSocAPeriod(myPwm, PWM_SocPeriod_FirstEvent);                 // Generate pulse on 1st event
-   PWM_setCmpA(myPwm, 0x0080);                                         // Set compare A value
-   PWM_setPeriod(myPwm, 680);                                       // Set period for ePWM1
+   PWM_setCmpA(myPwm, 0x0080);                                         // Set compare A value.
+   PWM_setPeriod(myPwm, 680);                                       // Set period for ePWM1.  Trigger the ADC every 680 ePWM clocks.
    PWM_setCounterMode(myPwm, PWM_CounterMode_Up);                      // count up and start
 
     // Initalize GPIO
@@ -434,21 +554,26 @@ void main()
     GPIO_setMode(myGpio, GPIO_Number_28, GPIO_28_Mode_SCIRXDA);
     GPIO_setMode(myGpio, GPIO_Number_29, GPIO_29_Mode_SCITXDA);
 
-    // Configure GPIO 0-3 as outputs
+    // Configure GPIO 0-1 as outputs
     GPIO_setMode(myGpio, GPIO_Number_0, GPIO_0_Mode_GeneralPurpose);
     GPIO_setMode(myGpio, GPIO_Number_1, GPIO_0_Mode_GeneralPurpose);
-    GPIO_setMode(myGpio, GPIO_Number_2, GPIO_0_Mode_GeneralPurpose);
-    GPIO_setMode(myGpio, GPIO_Number_3, GPIO_0_Mode_GeneralPurpose);
+
 
     GPIO_setDirection(myGpio, GPIO_Number_0, GPIO_Direction_Output);
     GPIO_setDirection(myGpio, GPIO_Number_1, GPIO_Direction_Output);
-    GPIO_setDirection(myGpio, GPIO_Number_2, GPIO_Direction_Output);
-    GPIO_setDirection(myGpio, GPIO_Number_3, GPIO_Direction_Output);
+
+
+    GPIO_setPullUp(myGpio, GPIO_Number_2, GPIO_PullUp_Disable);
+    GPIO_setPullUp(myGpio, GPIO_Number_3, GPIO_PullUp_Disable);
+    GPIO_setMode(myGpio, GPIO_Number_2, GPIO_2_Mode_EPWM2A);
+    GPIO_setMode(myGpio, GPIO_Number_3, GPIO_3_Mode_EPWM2B);
 
     //Push button input to start
     GPIO_setMode(myGpio, GPIO_Number_12, GPIO_12_Mode_GeneralPurpose);
     GPIO_setDirection(myGpio, GPIO_Number_12, GPIO_Direction_Input);
     GPIO_setPullUp(myGpio, GPIO_Number_12, GPIO_PullUp_Disable);
+
+
 
     //Redirect STDOUT to SCI
     status = add_device("scia", _SSA, SCI_open, SCI_close, SCI_read, SCI_write, SCI_lseek, SCI_unlink, SCI_rename);
@@ -457,49 +582,37 @@ void main()
     setvbuf(stdout, NULL, _IONBF, 0);
 
     //Print a TI Logo to STDOUT
-    //drawTILogo();
+   //drawTILogo();
+
+    InitEPwm2();
 
     //Scan the LEDs until the pushbutton is pressed
-    /*while(GPIO_getData(myGpio, GPIO_Number_12) != 1)
+    while(GPIO_getData(myGpio, GPIO_Number_12) != 1)
     {
         GPIO_setHigh(myGpio, GPIO_Number_0);
         GPIO_setHigh(myGpio, GPIO_Number_1);
-        GPIO_setHigh(myGpio, GPIO_Number_2);
-        GPIO_setLow(myGpio, GPIO_Number_3);
         DELAY_US(50000);
 
         GPIO_setHigh(myGpio, GPIO_Number_0);
         GPIO_setHigh(myGpio, GPIO_Number_1);
-        GPIO_setLow(myGpio, GPIO_Number_2);
-        GPIO_setHigh(myGpio, GPIO_Number_3);
         DELAY_US(50000);
 
         GPIO_setHigh(myGpio, GPIO_Number_0);
         GPIO_setLow(myGpio, GPIO_Number_1);
-        GPIO_setHigh(myGpio, GPIO_Number_2);
-        GPIO_setHigh(myGpio, GPIO_Number_3);
         DELAY_US(50000);
 
         GPIO_setLow(myGpio, GPIO_Number_0);
         GPIO_setHigh(myGpio, GPIO_Number_1);
-        GPIO_setHigh(myGpio, GPIO_Number_2);
-        GPIO_setHigh(myGpio, GPIO_Number_3);
         DELAY_US(500000);
-    }*/
+    }
 
-    //Clear out one of the text boxes so we can write more info to it
-    //clearTextBox();
-
-    //Main program loop - continually sample temperature
     for(;;)
     {
-       // DELAY_US(100000);
-    	if (GPIO_getData(myGpio, GPIO_Number_12) ==1)
+        DELAY_US(100000);
+    	if (GPIO_getData(myGpio, GPIO_Number_12) == 1)
     	{
-    		totalCount = 0;
-    		ConversionCount = 0;
-    		printf("Reset");
-    		printInfo = true;
+    		//totalCount = 0;
+    		//ConversionCount = 0;
 
     	}
     	//printf("total Count is %d", totalCount);
