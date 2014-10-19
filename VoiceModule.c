@@ -67,7 +67,7 @@ __interrupt void adc_isr(void);
 void Adc_Config(void);
 
 extern void DSP28x_usDelay(Uint32 Count);
-extern const float sine256Q15[];
+extern const unsigned int sine256Q15[];
 extern void WriteDac(Uint16 channel, int16 duty_frac);
 
 static unsigned short indexX=0;
@@ -115,7 +115,6 @@ EPWM_INFO epwm2_info;
 #define EPWM_CMP_DOWN 0
 
 int ConversionCount = 0;
-int totalCount = 0;
 int16_t voltage[FRAME_SIZE];
 int16_t frame[FRAME_SIZE];
 
@@ -261,10 +260,9 @@ __interrupt void adc_isr(void)
 	//TODO: Subtract DC Bias
     int a = ADC_readResult(myAdc, ADC_ResultNumber_1);
     int b = ADC_readResult(myAdc, ADC_ResultNumber_2);
-    totalCount++;
     voltage[ConversionCount] = (a+b)/2;
 
-    if (totalCount == FRAME_SIZE)
+    if (ConversionCount == FRAME_SIZE)
     {
     	// Disable the PIE and all interrupts
     	//TODO: Remove this after we want continuous frames
@@ -276,7 +274,7 @@ __interrupt void adc_isr(void)
 	   int i;
 	   for (i = 0; i < FRAME_SIZE; i++)
 	   {
-		   printf("%d, ", voltage[i]);
+		   //printf("%d, ", voltage[i]);
 	   }
     }
 
@@ -295,9 +293,17 @@ __interrupt void adc_isr(void)
     return;
 }
 
+int calculate_duty_cycle(float data, int bitResolution)
+{
+	const float sampleRate = 44100;
+	int maxValue = 2^bitResolution;
+	int duty = (data/maxValue) * (1.0 / sampleRate);
+	return duty;
+}
+
 void update_compare(EPWM_INFO *epwm_info)
 {
-    // Every 10'th interrupt, change the CMPA/CMPB values
+    // Every interrupt, change the CMPA/CMPB values
     if(epwm_info->EPwmTimerIntCount == 1) {
         epwm_info->EPwmTimerIntCount = 0;
 
@@ -606,19 +612,21 @@ void main()
         DELAY_US(500000);
     }
 
+    int j;
+    for (j = 0; j < 256; j++)
+	{//calculate_duty_cycle(sine256Q15[j], 16)
+    	printf("%u, ", sine256Q15[j]);
+	}
+
     for(;;)
     {
         DELAY_US(100000);
     	if (GPIO_getData(myGpio, GPIO_Number_12) == 1)
     	{
-    		//totalCount = 0;
-    		//ConversionCount = 0;
+
 
     	}
-    	//printf("total Count is %d", totalCount);
-
     }
-    //Test change in organization
 }
 
 
