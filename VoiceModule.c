@@ -259,7 +259,7 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 {
     // Every interrupt, change the CMPA/CMPB values
 	// unsigned int[] *dataToPlay
-	/*if (PWM_getCmpA(epwm_info->myPwmHandle) < dataToPlay[indexToPlay]/10)
+	if (PWM_getCmpA(epwm_info->myPwmHandle) < dataToPlay[indexToPlay]/10)
 	{
 		PWM_setCmpA(epwm_info->myPwmHandle, PWM_getCmpA(epwm_info->myPwmHandle) + 1);
 		printf("CmpA is %i and indexToPlay is %i", PWM_getCmpA(epwm_info->myPwmHandle), indexToPlay);
@@ -283,7 +283,7 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 			CLK_disablePwmClock(myClk, PWM_Number_2);
 		}
 	}
-*/
+
 	/* if(epwm_info->EPwmTimerIntCount == 1) {
 	        epwm_info->EPwmTimerIntCount = 0;
 
