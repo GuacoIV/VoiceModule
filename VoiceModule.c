@@ -98,7 +98,7 @@ EPWM_INFO epwm2_info;
 
 #define FRAME_SIZE 256
 
-#define EPWM2_TIMER_TBPRD    10 // Period register
+#define EPWM2_TIMER_TBPRD   1361 // Period register: 60 MHz / 44.1 kHz = 1361
 #define EPWM2_MAX_CMPA      9.5
 #define EPWM2_MIN_CMPA        0
 #define EPWM2_MAX_CMPB      9.5
@@ -259,20 +259,20 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 {
     // Every interrupt, change the CMPA/CMPB values
 	// unsigned int[] *dataToPlay
-	if (PWM_getCmpA(epwm_info->myPwmHandle) < dataToPlay[indexToPlay]/10)
+	/*if (PWM_getCmpA(epwm_info->myPwmHandle) < dataToPlay[indexToPlay]/10000)
 	{
 		PWM_setCmpA(epwm_info->myPwmHandle, PWM_getCmpA(epwm_info->myPwmHandle) + 1);
 		printf("CmpA is %i and indexToPlay is %i", PWM_getCmpA(epwm_info->myPwmHandle), indexToPlay);
 	}
 
-	else if (loop && (PWM_getCmpA(epwm_info->myPwmHandle) == dataToPlay[indexToPlay]/10))
+	else if (loop && (PWM_getCmpA(epwm_info->myPwmHandle) == dataToPlay[indexToPlay]/10000))
 	{
 		PWM_setCmpA(epwm_info->myPwmHandle, 0);
 		indexToPlay = ++indexToPlay % 256; //TODO: Change 256 to length of data array
 		epwm_info -> EPwmMaxCMPA = dataToPlay[indexToPlay];
 	}
 
-	else if (!loop && (PWM_getCmpA(epwm_info->myPwmHandle) == dataToPlay[indexToPlay]/10))
+	else if (!loop && (PWM_getCmpA(epwm_info->myPwmHandle) == dataToPlay[indexToPlay]/10000))
 	{
 		PWM_setCmpA(epwm_info->myPwmHandle, 0);
 		if (indexToPlay < 256 - 1)
@@ -282,9 +282,9 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 			indexToPlay = 0;
 			CLK_disablePwmClock(myClk, PWM_Number_2);
 		}
-	}
+	}*/
 
-	/* if(epwm_info->EPwmTimerIntCount == 1) {
+	 if(epwm_info->EPwmTimerIntCount == 1) {
 	        epwm_info->EPwmTimerIntCount = 0;
 
 	        // If we were increasing CMPA, check to see if
@@ -342,7 +342,7 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 	    }
 	    else {
 	        epwm_info->EPwmTimerIntCount++;
-	    }*/
+	    }
 
 	    return;
 }
