@@ -62,6 +62,7 @@
 #include "f2802x_common/include/sci.h"
 #include "f2802x_common/include/sci_io.h"
 #include "f2802x_common/include/wdog.h"
+//#include "ts_function.h"
 
 __interrupt void adc_isr(void);
 interrupt void epwm2_isr(void);
@@ -98,12 +99,6 @@ EPWM_INFO epwm2_info;
 
 #define FRAME_SIZE 256
 
-#define EPWM2_TIMER_TBPRD   1361 // Period register: 60 MHz / 44.1 kHz = 1361
-#define EPWM2_MAX_CMPA      9.5
-#define EPWM2_MIN_CMPA        0
-#define EPWM2_MAX_CMPB      9.5
-#define EPWM2_MIN_CMPB        0
-
 #define EPWM_CMP_UP   1
 #define EPWM_CMP_DOWN 0
 
@@ -111,6 +106,7 @@ int ConversionCount = 0;
 int16_t voltage[FRAME_SIZE];
 int16_t frame[FRAME_SIZE];
 int indexToPlay = 0;
+int loopCount = 0;
 
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
 void scia_init()
@@ -217,10 +213,10 @@ __interrupt void adc_isr(void)
     {
     	// Disable the PIE and all interrupts
     	//TODO: Remove this after we want continuous frames
-	   //PIE_disable(myPie);
-	   //PIE_disableAllInts(myPie);
-	   //CPU_disableGlobalInts(myCpu);
-	   //CPU_clearIntFlags(myCpu);
+	   PIE_disable(myPie);
+	   PIE_disableAllInts(myPie);
+	   CPU_disableGlobalInts(myCpu);
+	   CPU_clearIntFlags(myCpu);
 
 	   int i;
 	   for (i = 0; i < FRAME_SIZE; i++)
@@ -284,7 +280,18 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 		}
 	}*/
 
-	 if(epwm_info->EPwmTimerIntCount == 1) {
+	PWM_setCmpA(epwm_info->myPwmHandle, dataToPlay[indexToPlay]);
+	//printf("dataToPlay is %i", dataToPlay[indexToPlay]);
+
+	if (++indexToPlay >= 256)
+	{
+		//printf("Loop!");
+		indexToPlay = 0;
+		++loopCount;
+	}
+
+
+	 /*if(epwm_info->EPwmTimerIntCount == 1) {
 	        epwm_info->EPwmTimerIntCount = 0;
 
 	        // If we were increasing CMPA, check to see if
@@ -342,7 +349,7 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 	    }
 	    else {
 	        epwm_info->EPwmTimerIntCount++;
-	    }
+	    }*/
 
 	    return;
 }
@@ -350,7 +357,7 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 interrupt void epwm2_isr(void)
 {
     // Update the CMPA and CMPB values
-    update_compare(&epwm2_info, sine256Q15, true);
+    //update_compare(&epwm2_info, sine256Q15, true);
 
 	// Output a sine wave
    // static Uint16 i = 0;
@@ -367,25 +374,29 @@ interrupt void epwm2_isr(void)
     PIE_clearInt(myPie, PIE_GroupNumber_3);
 }
 
+//Audio
 void InitEPwm2()
 {
-	printf("Initializing PWM2");
+	//printf("Initializing PWM2");
 	indexToPlay = 0;
     CLK_enablePwmClock(myClk, PWM_Number_2);
 
     // Setup TBCLK
-    PWM_setPeriod(myPwm2, EPWM2_TIMER_TBPRD);   // Set timer period 801 TBCLKs, Clocking at 3 MHz
+    float sampleRate = 44100;
+    float clockRate = 62250000;
+    int highSpeedClockDiv = 10;
+    int period = ((1/sampleRate) * clockRate) / highSpeedClockDiv;
+    int halfOfPeriod = period / 2;
+    printf("period is %i and halfOfPeriod is %i", period, halfOfPeriod);
+
+    PWM_setPeriod(myPwm2, period);   // Set timer period (int) 136.1 TBCLKs
     PWM_setPhase(myPwm2, 0x0000);               // Phase is 0
     PWM_setCount(myPwm2, 0x0000);               // Clear counter
 
-    // Set Compare values
-    PWM_setCmpA(myPwm2, EPWM2_MIN_CMPA);        // Set compare A value
-    PWM_setCmpB(myPwm2, EPWM2_MIN_CMPB);        // Set Compare B value
-
     // Setup counter mode
-    PWM_setCounterMode(myPwm2, PWM_CounterMode_UpDown); // Count up
+    PWM_setCounterMode(myPwm2, PWM_CounterMode_Up); // Count up
     PWM_disableCounterLoad(myPwm2);                     // Disable phase loading
-    PWM_setHighSpeedClkDiv(myPwm2, PWM_HspClkDiv_by_1); // Clock ratio to SYSCLKOUT
+    PWM_setHighSpeedClkDiv(myPwm2, PWM_HspClkDiv_by_10); // Clock ratio to SYSCLKOUT
     PWM_setClkDiv(myPwm2, PWM_ClkDiv_by_1);
 
     // Setup shadowing
@@ -394,13 +405,16 @@ void InitEPwm2()
     PWM_setLoadMode_CmpA(myPwm2, PWM_LoadMode_Zero);
     PWM_setLoadMode_CmpB(myPwm2, PWM_LoadMode_Zero);
 
+    // Set Compare values
+    PWM_setCmpA(myPwm2, halfOfPeriod);        // Set compare A value
+    PWM_setCmpB(myPwm2, halfOfPeriod);        // Set Compare B value
 
     // Set actions
     PWM_setActionQual_CntUp_CmpA_PwmA(myPwm2, PWM_ActionQual_Set);      // Set PWM2A on event A, up count
     PWM_setActionQual_CntDown_CmpB_PwmA(myPwm2, PWM_ActionQual_Clear);  // Clear PWM2A on event B, down count
 
-    PWM_setActionQual_Zero_PwmB(myPwm2, PWM_ActionQual_Set);            // Clear PWM2B on zero
-    PWM_setActionQual_Period_PwmB(myPwm2, PWM_ActionQual_Clear);        // Set PWM2B on period
+    PWM_setActionQual_Zero_PwmB(myPwm2, PWM_ActionQual_Set);            // Set PWM2B on Zero
+       PWM_setActionQual_CntUp_CmpB_PwmB(myPwm2, PWM_ActionQual_Clear);    // Clear PWM2B on event B, up count
 
     // Interrupt where we will change the Compare Values
     PWM_setIntMode(myPwm2, PWM_IntMode_CounterEqualZero);   // Select INT on Zero event
@@ -415,10 +429,10 @@ void InitEPwm2()
     epwm2_info.EPwm_CMPB_Direction = EPWM_CMP_UP;   // increasing CMPB
     epwm2_info.EPwmTimerIntCount = 0;               // Zero the interrupt counter
     epwm2_info.myPwmHandle = myPwm2;                // Set the pointer to the ePWM module
-    epwm2_info.EPwmMaxCMPA = EPWM2_MAX_CMPA;        // Setup min/max CMPA/CMPB values
-    epwm2_info.EPwmMinCMPA = EPWM2_MIN_CMPA;
-    epwm2_info.EPwmMaxCMPB = EPWM2_MAX_CMPB;
-    epwm2_info.EPwmMinCMPB = EPWM2_MIN_CMPB;
+    epwm2_info.EPwmMaxCMPA = period;        // Setup min/max CMPA/CMPB values
+    epwm2_info.EPwmMinCMPA = halfOfPeriod;
+    epwm2_info.EPwmMaxCMPB = period;
+    epwm2_info.EPwmMinCMPB = halfOfPeriod;
 }
 
 
@@ -455,7 +469,7 @@ void main()
     // Perform basic system initialization
     WDOG_disable(myWDog);
     CLK_enableAdcClock(myClk);
-    CLK_enableTbClockSync(myClk);
+    //CLK_enableTbClockSync(myClk);
     CLK_enablePwmClock(myClk, PWM_Number_1);
     (*Device_cal)();
 
@@ -565,24 +579,14 @@ void main()
     freopen("scia:", "w", stdout);
     setvbuf(stdout, NULL, _IONBF, 0);
 
-    //Print a TI Logo to STDOUT
-   //drawTILogo();
-
     // Enable CPU INT3 which is connected to EPWM1-3 INT:
     CPU_enableInt(myCpu, CPU_IntNumber_3);
     PIE_enablePwmInt(myPie, PWM_Number_2);
-    InitEPwm2();
-    //Scan the LEDs until the pushbutton is pressed
-    while(GPIO_getData(myGpio, GPIO_Number_12) != 1)
-    {
-        GPIO_setHigh(myGpio, GPIO_Number_0);
-        GPIO_setHigh(myGpio, GPIO_Number_1);
-        DELAY_US(50000);
 
-        GPIO_setHigh(myGpio, GPIO_Number_0);
-        GPIO_setHigh(myGpio, GPIO_Number_1);
-        DELAY_US(50000);
-    }
+    CLK_disableTbClockSync(myClk);
+    InitEPwm2();
+    CLK_enableTbClockSync(myClk);
+    CLK_enablePwmClock(myClk, PWM_Number_2);
 
    // int j;
     //for (j = 0; j < 256; j++)
@@ -592,12 +596,14 @@ void main()
     	//calculate_duty_cycle(sine256Q15[j], 16);
 	//}
 
+    //double libAnswer = ts_function(2);
+    //printf("2x2 = %d", libAnswer);
     for(;;)
     {
-        DELAY_US(100000);
+        //DELAY_US(100000);
     	if (GPIO_getData(myGpio, GPIO_Number_12) == 1)
     	{
-
+    		//printf("Loopcount: %i", loopCount);
     	}
     }
 }
