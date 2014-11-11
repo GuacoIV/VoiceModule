@@ -107,6 +107,9 @@ int16_t voltage[FRAME_SIZE];
 int16_t frame[FRAME_SIZE];
 int indexToPlay = 0;
 int loopCount = 0;
+const float sampleRate = 10000;
+const float clockRate = 60000000;
+const int highSpeedClockDiv = 10;
 
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
 void scia_init()
@@ -240,13 +243,14 @@ __interrupt void adc_isr(void)
     return;
 }
 
-float calculate_duty_cycle(float data, int bitResolution)
+int calculate_duty_cycle(unsigned int data, int bitResolution)
 {
 	const float sampleRate = 44100;
-	float maxValue = 2^bitResolution - 1;
-	float duty = (data/maxValue) * (1.0 / sampleRate);
-
-	printf("%i, ", duty);
+	unsigned int periodForSampleRate = ((1/sampleRate) * clockRate) / highSpeedClockDiv;
+	unsigned int maxValue = (int) sine256Q15[64];//2^bitResolution - 1;
+	unsigned int duty = (((float) data * (float) periodForSampleRate)/maxValue);
+	float dataTimesPeriod = ((float) data * (float) periodForSampleRate);
+	//printf("data = %i, dataTimesPeriod = %f, duty = %i \r\n", data, dataTimesPeriod, duty);
 
 	return duty;
 }
@@ -280,8 +284,8 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 		}
 	}*/
 
-	PWM_setCmpA(epwm_info->myPwmHandle, dataToPlay[indexToPlay]);
-	//printf("dataToPlay is %i", dataToPlay[indexToPlay]);
+	PWM_setCmpA(epwm_info->myPwmHandle, calculate_duty_cycle(dataToPlay[indexToPlay], 16));
+	//printf("dataToPlay is %i\n\r", dataToPlay[indexToPlay]/250);
 
 	if (++indexToPlay >= 256)
 	{
@@ -357,8 +361,7 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 interrupt void epwm2_isr(void)
 {
     // Update the CMPA and CMPB values
-    //update_compare(&epwm2_info, sine256Q15, true);
-
+    update_compare(&epwm2_info, sine256Q15, true);
 	// Output a sine wave
    // static Uint16 i = 0;
     //Uint16 DAC1_frac;
@@ -382,9 +385,6 @@ void InitEPwm2()
     CLK_enablePwmClock(myClk, PWM_Number_2);
 
     // Setup TBCLK
-    float sampleRate = 44100;
-    float clockRate = 62250000;
-    int highSpeedClockDiv = 10;
     int period = ((1/sampleRate) * clockRate) / highSpeedClockDiv;
     int halfOfPeriod = period / 2;
     printf("period is %i and halfOfPeriod is %i", period, halfOfPeriod);
@@ -588,13 +588,12 @@ void main()
     CLK_enableTbClockSync(myClk);
     CLK_enablePwmClock(myClk, PWM_Number_2);
 
-   // int j;
-    //for (j = 0; j < 256; j++)
-	//{
-    	//printf("%i, ", calculate_duty_cycle(sine256Q15[j], 16));
+    int j;
+    for (j = 0; j < 256; j++)
+	{
+    	calculate_duty_cycle(sine256Q15[j], 16);
     	//printf("%u, ", sine256Q15[j]);
-    	//calculate_duty_cycle(sine256Q15[j], 16);
-	//}
+    }
 
     //double libAnswer = ts_function(2);
     //printf("2x2 = %d", libAnswer);

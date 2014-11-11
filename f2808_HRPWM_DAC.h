@@ -119,7 +119,7 @@ extern Uint16 secureRamFuncs_runstart;
 // Global symbols defined in source files
 //
 extern const struct PIE_VECT_TABLE PieVectTableInit;
-extern const Uint16 sine256Q15[];
+extern const unsigned int sine256Q15[];
 
 //---------------------------------------------------------------------------
 #endif  // end of f2808_HRPWM_DAC_H definition
