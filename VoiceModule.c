@@ -107,7 +107,7 @@ int16_t voltage[FRAME_SIZE];
 int16_t frame[FRAME_SIZE];
 int indexToPlay = 0;
 int loopCount = 0;
-const float sampleRate = 10000;
+const float sampleRate = 1000000;
 const float clockRate = 60000000;
 const int highSpeedClockDiv = 10;
 
@@ -245,11 +245,11 @@ __interrupt void adc_isr(void)
 
 int calculate_duty_cycle(unsigned int data, int bitResolution)
 {
-	const float sampleRate = 44100;
+	const float sampleRate = 1000000;
 	unsigned int periodForSampleRate = ((1/sampleRate) * clockRate) / highSpeedClockDiv;
 	unsigned int maxValue = (int) sine256Q15[64];//2^bitResolution - 1;
 	unsigned int duty = (((float) data * (float) periodForSampleRate)/maxValue);
-	float dataTimesPeriod = ((float) data * (float) periodForSampleRate);
+	//float dataTimesPeriod = ((float) data * (float) periodForSampleRate);
 	//printf("data = %i, dataTimesPeriod = %f, duty = %i \r\n", data, dataTimesPeriod, duty);
 
 	return duty;
@@ -285,7 +285,8 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 	}*/
 
 	PWM_setCmpA(epwm_info->myPwmHandle, calculate_duty_cycle(dataToPlay[indexToPlay], 16));
-	//printf("dataToPlay is %i\n\r", dataToPlay[indexToPlay]/250);
+	PWM_setCmpB(epwm_info->myPwmHandle, calculate_duty_cycle(dataToPlay[indexToPlay], 16));
+	//printf("dataToPlay is %i\n\r", calculate_duty_cycle(dataToPlay[indexToPlay], 16));
 
 	if (++indexToPlay >= 256)
 	{
@@ -293,67 +294,6 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 		indexToPlay = 0;
 		++loopCount;
 	}
-
-
-	 /*if(epwm_info->EPwmTimerIntCount == 1) {
-	        epwm_info->EPwmTimerIntCount = 0;
-
-	        // If we were increasing CMPA, check to see if
-	        // we reached the max value.  If not, increase CMPA
-	        // else, change directions and decrease CMPA
-	        if(epwm_info->EPwm_CMPA_Direction == EPWM_CMP_UP) {
-	            if(PWM_getCmpA(epwm_info->myPwmHandle) < epwm_info->EPwmMaxCMPA) {
-	                PWM_setCmpA(epwm_info->myPwmHandle, PWM_getCmpA(epwm_info->myPwmHandle) + 1);
-	            }
-	            else {
-	                epwm_info->EPwm_CMPA_Direction = EPWM_CMP_DOWN;
-	                PWM_setCmpA(epwm_info->myPwmHandle, PWM_getCmpA(epwm_info->myPwmHandle) - 1);
-	            }
-	        }
-
-	        // If we were decreasing CMPA, check to see if
-	        // we reached the min value.  If not, decrease CMPA
-	        // else, change directions and increase CMPA
-	        else {
-	            if(PWM_getCmpA(epwm_info->myPwmHandle) == epwm_info->EPwmMinCMPA) {
-	                epwm_info->EPwm_CMPA_Direction = EPWM_CMP_UP;
-	                PWM_setCmpA(epwm_info->myPwmHandle, PWM_getCmpA(epwm_info->myPwmHandle) + 1);
-	            }
-	            else {
-	                PWM_setCmpA(epwm_info->myPwmHandle, PWM_getCmpA(epwm_info->myPwmHandle) - 1);
-	            }
-	        }
-
-	        // If we were increasing CMPB, check to see if
-	        // we reached the max value.  If not, increase CMPB
-	        // else, change directions and decrease CMPB
-	        if(epwm_info->EPwm_CMPB_Direction == EPWM_CMP_UP) {
-	            if(PWM_getCmpB(epwm_info->myPwmHandle) < epwm_info->EPwmMaxCMPB) {
-	                PWM_setCmpB(epwm_info->myPwmHandle, PWM_getCmpB(epwm_info->myPwmHandle) + 1);
-	            }
-	            else {
-	                epwm_info->EPwm_CMPB_Direction = EPWM_CMP_DOWN;
-	                PWM_setCmpB(epwm_info->myPwmHandle, PWM_getCmpB(epwm_info->myPwmHandle) - 1);
-	            }
-	        }
-
-	        // If we were decreasing CMPB, check to see if
-	        // we reached the min value.  If not, decrease CMPB
-	        // else, change directions and increase CMPB
-
-	        else {
-	            if(PWM_getCmpB(epwm_info->myPwmHandle) == epwm_info->EPwmMinCMPB) {
-	                epwm_info->EPwm_CMPB_Direction = EPWM_CMP_UP;
-	                PWM_setCmpB(epwm_info->myPwmHandle, PWM_getCmpB(epwm_info->myPwmHandle) + 1);
-	            }
-	            else {
-	                PWM_setCmpB(epwm_info->myPwmHandle, PWM_getCmpB(epwm_info->myPwmHandle) - 1);
-	            }
-	        }
-	    }
-	    else {
-	        epwm_info->EPwmTimerIntCount++;
-	    }*/
 
 	    return;
 }
@@ -387,7 +327,7 @@ void InitEPwm2()
     // Setup TBCLK
     int period = ((1/sampleRate) * clockRate) / highSpeedClockDiv;
     int halfOfPeriod = period / 2;
-    printf("period is %i and halfOfPeriod is %i", period, halfOfPeriod);
+    //printf("period is %i and halfOfPeriod is %i", period, halfOfPeriod);
 
     PWM_setPeriod(myPwm2, period);   // Set timer period (int) 136.1 TBCLKs
     PWM_setPhase(myPwm2, 0x0000);               // Phase is 0
