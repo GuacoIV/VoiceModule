@@ -249,7 +249,6 @@ int calculate_duty_cycle(unsigned int data, int bitResolution)
 	unsigned int periodForSampleRate = ((1/sampleRate) * clockRate) / highSpeedClockDiv;
 	unsigned int maxValue = (int) sine256Q15[64];//2^bitResolution - 1;
 	unsigned int duty = (((float) data * (float) periodForSampleRate)/maxValue);
-	//float dataTimesPeriod = ((float) data * (float) periodForSampleRate);
 	//printf("data = %i, dataTimesPeriod = %f, duty = %i \r\n", data, dataTimesPeriod, duty);
 
 	return duty;
@@ -258,31 +257,6 @@ int calculate_duty_cycle(unsigned int data, int bitResolution)
 void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool loop)
 {
     // Every interrupt, change the CMPA/CMPB values
-	// unsigned int[] *dataToPlay
-	/*if (PWM_getCmpA(epwm_info->myPwmHandle) < dataToPlay[indexToPlay]/10000)
-	{
-		PWM_setCmpA(epwm_info->myPwmHandle, PWM_getCmpA(epwm_info->myPwmHandle) + 1);
-		printf("CmpA is %i and indexToPlay is %i", PWM_getCmpA(epwm_info->myPwmHandle), indexToPlay);
-	}
-
-	else if (loop && (PWM_getCmpA(epwm_info->myPwmHandle) == dataToPlay[indexToPlay]/10000))
-	{
-		PWM_setCmpA(epwm_info->myPwmHandle, 0);
-		indexToPlay = ++indexToPlay % 256; //TODO: Change 256 to length of data array
-		epwm_info -> EPwmMaxCMPA = dataToPlay[indexToPlay];
-	}
-
-	else if (!loop && (PWM_getCmpA(epwm_info->myPwmHandle) == dataToPlay[indexToPlay]/10000))
-	{
-		PWM_setCmpA(epwm_info->myPwmHandle, 0);
-		if (indexToPlay < 256 - 1)
-			indexToPlay++;
-		else
-		{
-			indexToPlay = 0;
-			CLK_disablePwmClock(myClk, PWM_Number_2);
-		}
-	}*/
 
 	PWM_setCmpA(epwm_info->myPwmHandle, calculate_duty_cycle(dataToPlay[indexToPlay], 16));
 	PWM_setCmpB(epwm_info->myPwmHandle, calculate_duty_cycle(dataToPlay[indexToPlay], 16));
@@ -303,12 +277,6 @@ interrupt void epwm2_isr(void)
     // Update the CMPA and CMPB values
     update_compare(&epwm2_info, sine256Q15, true);
 	// Output a sine wave
-   // static Uint16 i = 0;
-    //Uint16 DAC1_frac;
-	//DAC1_frac = sine256Q15[i];						// Read sine wave table
-	//WriteDac(1, DAC1_frac);					// Write to the DAC
-	//i++;											// Increment the index
-	//i &= 0xFF;
 
     // Clear INT flag for this timer
     PWM_clearIntFlag(myPwm2);
@@ -320,7 +288,6 @@ interrupt void epwm2_isr(void)
 //Audio
 void InitEPwm2()
 {
-	//printf("Initializing PWM2");
 	indexToPlay = 0;
     CLK_enablePwmClock(myClk, PWM_Number_2);
 
