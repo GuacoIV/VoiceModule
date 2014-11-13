@@ -51,7 +51,6 @@
 #include <file.h>
 
 #include "DSP28x_Project.h"     // DSP28x Headerfile
-#include "ti_ascii.h"
 
 #include "f2802x_common/include/adc.h"
 #include "f2802x_common/include/clk.h"
@@ -62,7 +61,8 @@
 #include "f2802x_common/include/sci.h"
 #include "f2802x_common/include/sci_io.h"
 #include "f2802x_common/include/wdog.h"
-//#include "ts_function.h"
+#include "Audio.h"
+#include "ts_function.h"
 
 __interrupt void adc_isr(void);
 interrupt void epwm2_isr(void);
@@ -107,7 +107,7 @@ int16_t voltage[FRAME_SIZE];
 int16_t frame[FRAME_SIZE];
 int indexToPlay = 0;
 int loopCount = 0;
-const float sampleRate = 1000000;
+const float sampleRate = 1200000;
 const float clockRate = 60000000;
 const int highSpeedClockDiv = 10;
 
@@ -245,11 +245,11 @@ __interrupt void adc_isr(void)
 
 int calculate_duty_cycle(unsigned int data, int bitResolution)
 {
-	const float sampleRate = 1000000;
+	const float sampleRate = 1200000;
 	unsigned int periodForSampleRate = ((1/sampleRate) * clockRate) / highSpeedClockDiv;
-	unsigned int maxValue = (int) sine256Q15[64];//2^bitResolution - 1;
+	unsigned int maxValue = 32767;//(int) sine256Q15[64];//2^bitResolution - 1;
 	unsigned int duty = (((float) data * (float) periodForSampleRate)/maxValue);
-	//printf("data = %i, dataTimesPeriod = %f, duty = %i \r\n", data, dataTimesPeriod, duty);
+	//printf("data = %i, duty = %i \r\n", data, duty);
 
 	return duty;
 }
@@ -262,7 +262,7 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 	PWM_setCmpB(epwm_info->myPwmHandle, calculate_duty_cycle(dataToPlay[indexToPlay], 16));
 	//printf("dataToPlay is %i\n\r", calculate_duty_cycle(dataToPlay[indexToPlay], 16));
 
-	if (++indexToPlay >= 256)
+	if (++indexToPlay >= 2536)
 	{
 		//printf("Loop!");
 		indexToPlay = 0;
@@ -275,7 +275,7 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 interrupt void epwm2_isr(void)
 {
     // Update the CMPA and CMPB values
-    update_compare(&epwm2_info, sine256Q15, true);
+    update_compare(&epwm2_info, wavFile/*sine256Q15*/, true);
 	// Output a sine wave
 
     // Clear INT flag for this timer
@@ -502,8 +502,10 @@ void main()
     	//printf("%u, ", sine256Q15[j]);
     }
 
-    //double libAnswer = ts_function(2);
-    //printf("2x2 = %d", libAnswer);
+
+
+    double libAnswer = ts_function(2);
+    printf("2x2 = %f", libAnswer);
     for(;;)
     {
         //DELAY_US(100000);
