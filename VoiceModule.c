@@ -62,7 +62,6 @@
 #include "f2802x_common/include/sci_io.h"
 #include "f2802x_common/include/wdog.h"
 #include "Audio.h"
-#include "ts_function.h"
 
 __interrupt void adc_isr(void);
 interrupt void epwm2_isr(void);
@@ -107,7 +106,7 @@ int16_t voltage[FRAME_SIZE];
 int16_t frame[FRAME_SIZE];
 int indexToPlay = 0;
 int loopCount = 0;
-const float sampleRate = 1200000;
+const float sampleRate = 44100;
 const float clockRate = 60000000;
 const int highSpeedClockDiv = 10;
 
@@ -245,9 +244,9 @@ __interrupt void adc_isr(void)
 
 int calculate_duty_cycle(unsigned int data, int bitResolution)
 {
-	const float sampleRate = 1200000;
-	unsigned int periodForSampleRate = ((1/sampleRate) * clockRate) / highSpeedClockDiv;
-	unsigned int maxValue = 32767;//(int) sine256Q15[64];//2^bitResolution - 1;
+	const float sampleRate = 44100;
+	unsigned int periodForSampleRate = ((1/sampleRate) * clockRate) / highSpeedClockDiv; //136 for 44.1 kHz
+	unsigned int maxValue = sine256Q15[64];//2^bitResolution - 1;
 	unsigned int duty = (((float) data * (float) periodForSampleRate)/maxValue);
 	//printf("data = %i, duty = %i \r\n", data, duty);
 
@@ -262,7 +261,7 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 	PWM_setCmpB(epwm_info->myPwmHandle, calculate_duty_cycle(dataToPlay[indexToPlay], 16));
 	//printf("dataToPlay is %i\n\r", calculate_duty_cycle(dataToPlay[indexToPlay], 16));
 
-	if (++indexToPlay >= 2536)
+	if (++indexToPlay >= 256)//2536
 	{
 		//printf("Loop!");
 		indexToPlay = 0;
@@ -275,7 +274,7 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 interrupt void epwm2_isr(void)
 {
     // Update the CMPA and CMPB values
-    update_compare(&epwm2_info, wavFile/*sine256Q15*/, true);
+    update_compare(&epwm2_info, sine256Q15, true);
 	// Output a sine wave
 
     // Clear INT flag for this timer
@@ -317,11 +316,11 @@ void InitEPwm2()
     PWM_setCmpB(myPwm2, halfOfPeriod);        // Set Compare B value
 
     // Set actions
-    PWM_setActionQual_CntUp_CmpA_PwmA(myPwm2, PWM_ActionQual_Set);      // Set PWM2A on event A, up count
-    PWM_setActionQual_CntDown_CmpB_PwmA(myPwm2, PWM_ActionQual_Clear);  // Clear PWM2A on event B, down count
+    PWM_setActionQual_Zero_PwmA(myPwm2, PWM_ActionQual_Set);      // Set PWM2A on Zero
+    PWM_setActionQual_CntUp_CmpB_PwmA(myPwm2, PWM_ActionQual_Clear);  // Clear PWM2A on event B, up count
 
-    PWM_setActionQual_Zero_PwmB(myPwm2, PWM_ActionQual_Set);            // Set PWM2B on Zero
-       PWM_setActionQual_CntUp_CmpB_PwmB(myPwm2, PWM_ActionQual_Clear);    // Clear PWM2B on event B, up count
+    PWM_setActionQual_Zero_PwmB(myPwm2, PWM_ActionQual_Clear);            // Set PWM2B on Zero
+    PWM_setActionQual_CntUp_CmpB_PwmB(myPwm2, PWM_ActionQual_Set);    // Clear PWM2B on event B, up count
 
     // Interrupt where we will change the Compare Values
     PWM_setIntMode(myPwm2, PWM_IntMode_CounterEqualZero);   // Select INT on Zero event
@@ -495,17 +494,8 @@ void main()
     CLK_enableTbClockSync(myClk);
     CLK_enablePwmClock(myClk, PWM_Number_2);
 
-    int j;
-    for (j = 0; j < 256; j++)
-	{
-    	calculate_duty_cycle(sine256Q15[j], 16);
-    	//printf("%u, ", sine256Q15[j]);
-    }
+    printf("yo");
 
-
-
-    double libAnswer = ts_function(2);
-    printf("2x2 = %f", libAnswer);
     for(;;)
     {
         //DELAY_US(100000);
