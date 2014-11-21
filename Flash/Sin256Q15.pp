@@ -33,10 +33,6 @@ Sin256Q15.obj: C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common
 Sin256Q15.obj: C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/include/F2802x_EPwm_defines.h
 Sin256Q15.obj: C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/include/F2802x_I2c_defines.h
 Sin256Q15.obj: C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/include/F2802x_DefaultISR.h
-Sin256Q15.obj: ../f2808_HRPWM_DAC.h
-Sin256Q15.obj: c:/ti/ccsv6/tools/compiler/c2000_6.2.8/include/string.h
-Sin256Q15.obj: ../Dac.h
-Sin256Q15.obj: ../SFO.h
 
 ../Sin256Q15.c: 
 C:/ti/controlSUITE/development_kits/C2000_LaunchPad/DSP28x_Project.h: 
@@ -71,7 +67,3 @@ C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/include/F2802x
 C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/include/F2802x_EPwm_defines.h: 
 C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/include/F2802x_I2c_defines.h: 
 C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/include/F2802x_DefaultISR.h: 
-../f2808_HRPWM_DAC.h: 
-c:/ti/ccsv6/tools/compiler/c2000_6.2.8/include/string.h: 
-../Dac.h: 
-../SFO.h: 

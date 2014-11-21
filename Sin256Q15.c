@@ -9,11 +9,11 @@
 **********************************************************************/
 
 #include "DSP28x_Project.h"				// Peripheral address definitions
-#include "f2808_HRPWM_DAC.h"				// Include file specific to this project
+//#include "f2808_HRPWM_DAC.h"				// Include file specific to this project
 
 // AMPLITUDE, OFFSET, Q15_SCALE, and PWM_VOLTAGE are defined in f2808_HRPWM_DAC.h
 //(2.0/3.3)+(32768*0.5/3.3) = 4965.4545454545454545454545454545 //.606 + 4964.8484
-#define scale     (AMPLITUDE/PWM_VOLTAGE)+(Q15_SCALE*OFFSET/PWM_VOLTAGE)
+//#define scale     (AMPLITUDE/PWM_VOLTAGE)+(Q15_SCALE*OFFSET/PWM_VOLTAGE)
 
 /*********************************************************************/
 const unsigned int sine256Q15[] = {

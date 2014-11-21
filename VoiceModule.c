@@ -66,6 +66,7 @@
 __interrupt void adc_isr(void);
 interrupt void epwm2_isr(void);
 void Adc_Config(void);
+int timeToUpdate = 0;
 
 extern void DSP28x_usDelay(Uint32 Count);
 extern const unsigned int sine256Q15[];
@@ -106,9 +107,14 @@ int16_t voltage[FRAME_SIZE];
 int16_t frame[FRAME_SIZE];
 int indexToPlay = 0;
 int loopCount = 0;
-const float sampleRate = 44100;
+const float sampleRate = 1000000;
 const float clockRate = 60000000;
-const int highSpeedClockDiv = 10;
+const int highSpeedClockDiv = 5;
+
+unsigned int periodForSampleRate;
+unsigned int maxValue; //= sine256Q15[64];//2^bitResolution - 1;
+unsigned int sineDuties[256];
+unsigned int wavDuties[1020];
 
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
 void scia_init()
@@ -244,10 +250,9 @@ __interrupt void adc_isr(void)
 
 int calculate_duty_cycle(unsigned int data, int bitResolution)
 {
-	const float sampleRate = 44100;
-	unsigned int periodForSampleRate = ((1/sampleRate) * clockRate) / highSpeedClockDiv; //136 for 44.1 kHz
-	unsigned int maxValue = sine256Q15[64];//2^bitResolution - 1;
-	unsigned int duty = (((float) data * (float) periodForSampleRate)/maxValue);
+	//const float sampleRate = 2560;
+
+	unsigned int duty = (((float) data/maxValue) * (float) periodForSampleRate);//32767
 	//printf("data = %i, duty = %i \r\n", data, duty);
 
 	return duty;
@@ -255,11 +260,8 @@ int calculate_duty_cycle(unsigned int data, int bitResolution)
 
 void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool loop)
 {
-    // Every interrupt, change the CMPA/CMPB values
-
-	PWM_setCmpA(epwm_info->myPwmHandle, calculate_duty_cycle(dataToPlay[indexToPlay], 16));
-	PWM_setCmpB(epwm_info->myPwmHandle, calculate_duty_cycle(dataToPlay[indexToPlay], 16));
-	//printf("dataToPlay is %i\n\r", calculate_duty_cycle(dataToPlay[indexToPlay], 16));
+	//PWM_setCmpA(epwm_info->myPwmHandle, calculate_duty_cycle(dataToPlay[indexToPlay], 16));
+	PWM_setCmpB(epwm_info->myPwmHandle, dataToPlay[indexToPlay]);
 
 	if (++indexToPlay >= 256)//2536
 	{
@@ -267,14 +269,13 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 		indexToPlay = 0;
 		++loopCount;
 	}
-
-	    return;
+	return;
 }
 
 interrupt void epwm2_isr(void)
 {
     // Update the CMPA and CMPB values
-    update_compare(&epwm2_info, sine256Q15, true);
+    update_compare(&epwm2_info, sineDuties, true);
 	// Output a sine wave
 
     // Clear INT flag for this timer
@@ -291,8 +292,8 @@ void InitEPwm2()
     CLK_enablePwmClock(myClk, PWM_Number_2);
 
     // Setup TBCLK
-    int period = ((1/sampleRate) * clockRate) / highSpeedClockDiv;
-    int halfOfPeriod = period / 2;
+    int period = (((1/sampleRate) * clockRate) / (highSpeedClockDiv));
+    int halfOfPeriod = (period / 2);
     //printf("period is %i and halfOfPeriod is %i", period, halfOfPeriod);
 
     PWM_setPeriod(myPwm2, period);   // Set timer period (int) 136.1 TBCLKs
@@ -306,24 +307,18 @@ void InitEPwm2()
     PWM_setClkDiv(myPwm2, PWM_ClkDiv_by_1);
 
     // Setup shadowing
-    PWM_setShadowMode_CmpA(myPwm2, PWM_ShadowMode_Shadow);
     PWM_setShadowMode_CmpB(myPwm2, PWM_ShadowMode_Shadow);
-    PWM_setLoadMode_CmpA(myPwm2, PWM_LoadMode_Zero);
     PWM_setLoadMode_CmpB(myPwm2, PWM_LoadMode_Zero);
 
     // Set Compare values
-    PWM_setCmpA(myPwm2, halfOfPeriod);        // Set compare A value
     PWM_setCmpB(myPwm2, halfOfPeriod);        // Set Compare B value
 
     // Set actions
-    PWM_setActionQual_Zero_PwmA(myPwm2, PWM_ActionQual_Set);      // Set PWM2A on Zero
-    PWM_setActionQual_CntUp_CmpB_PwmA(myPwm2, PWM_ActionQual_Clear);  // Clear PWM2A on event B, up count
-
-    PWM_setActionQual_Zero_PwmB(myPwm2, PWM_ActionQual_Clear);            // Set PWM2B on Zero
-    PWM_setActionQual_CntUp_CmpB_PwmB(myPwm2, PWM_ActionQual_Set);    // Clear PWM2B on event B, up count
+    PWM_setActionQual_Zero_PwmB(myPwm2, PWM_ActionQual_Set);            // Set PWM2B on Zero
+    PWM_setActionQual_CntUp_CmpB_PwmB(myPwm2, PWM_ActionQual_Clear);    // Clear PWM2B on event B, up count
 
     // Interrupt where we will change the Compare Values
-    PWM_setIntMode(myPwm2, PWM_IntMode_CounterEqualZero);   // Select INT on Zero event
+    PWM_setIntMode(myPwm2, PWM_IntMode_CounterEqualZeroOrPeriod);   // Select INT on Zero event
     PWM_enableInt(myPwm2);                                  // Enable INT
     PWM_setIntPeriod(myPwm2, PWM_IntPeriod_ThirdEvent);     // Generate INT on 3rd event
 
@@ -341,8 +336,6 @@ void InitEPwm2()
     epwm2_info.EPwmMinCMPB = halfOfPeriod;
 }
 
-
-
 void main()
 {
     volatile int status = 0;
@@ -358,6 +351,18 @@ void main()
 		voltage[i] = 0;
 		//frame[i] = 0;
 	}
+
+	periodForSampleRate = (((1/sampleRate) * clockRate) / (highSpeedClockDiv)); //136 for 44.1 kHz
+	maxValue = sine256Q15[64];//2^bitResolution - 1;
+
+	int counter = 0;
+	for (counter = 0; counter < 256; counter++)
+		sineDuties[counter] = calculate_duty_cycle(sine256Q15[counter], 16);
+
+	counter = 0;
+	//for (counter = 0; counter < 1020; counter++)
+	//	wavDuties[counter] = calculate_duty_cycle(wavFile[counter], 16);
+
 
     // Initialize all the handles needed for this application
     myAdc = ADC_init((void *)ADC_BASE_ADDR, sizeof(ADC_Obj));
@@ -376,7 +381,7 @@ void main()
     WDOG_disable(myWDog);
     CLK_enableAdcClock(myClk);
     //CLK_enableTbClockSync(myClk);
-    CLK_enablePwmClock(myClk, PWM_Number_1);
+    //CLK_enablePwmClock(myClk, PWM_Number_1);
     (*Device_cal)();
 
     //Select the internal oscillator 1 as the clock source
@@ -406,17 +411,17 @@ void main()
     PIE_enable(myPie);
 
     // Initialize SCIA
-    scia_init();
+    //scia_init();
 
     PIE_registerPieIntHandler(myPie, PIE_GroupNumber_10, PIE_SubGroupNumber_1, (intVec_t)&adc_isr);
     PIE_registerPieIntHandler(myPie, PIE_GroupNumber_3, PIE_SubGroupNumber_2, (intVec_t)&epwm2_isr);
 
     //Initialize the ADC
-	ADC_enableBandGap(myAdc);
-	ADC_enableRefBuffers(myAdc);
-	ADC_powerUp(myAdc);
-	ADC_enable(myAdc);
-	ADC_setVoltRefSrc(myAdc, ADC_VoltageRefSrc_Int);
+	//ADC_enableBandGap(myAdc);
+	//ADC_enableRefBuffers(myAdc);
+	//ADC_powerUp(myAdc);
+	//ADC_enable(myAdc);
+	//ADC_setVoltRefSrc(myAdc, ADC_VoltageRefSrc_Int);
 
 	// Enable ADCINT1 in PIE
 	PIE_enableAdcInt(myPie, ADC_IntNumber_1);
@@ -429,31 +434,31 @@ void main()
 
     // Configure ADC
     //Note: Channel ADCINA4  will be double sampled to workaround the ADC 1st sample issue for rev0 silicon errata
-    ADC_setIntPulseGenMode(myAdc, ADC_IntPulseGenMode_Prior);               //ADCINT1 trips after AdcResults latch
-    ADC_enableInt(myAdc, ADC_IntNumber_1);                                  //Enabled ADCINT1
-    ADC_setIntMode(myAdc, ADC_IntNumber_1, ADC_IntMode_ClearFlag);          //Disable ADCINT1 Continuous mode
-    ADC_setIntSrc(myAdc, ADC_IntNumber_1, ADC_IntSrc_EOC2);                 //setup EOC2 to trigger ADCINT1 to fire
-    ADC_setSocChanNumber (myAdc, ADC_SocNumber_0, ADC_SocChanNumber_A4);    //set SOC0 channel select to ADCINA4
-    ADC_setSocChanNumber (myAdc, ADC_SocNumber_1, ADC_SocChanNumber_A4);    //set SOC1 channel select to ADCINA4
-    ADC_setSocChanNumber (myAdc, ADC_SocNumber_2, ADC_SocChanNumber_A2);    //set SOC2 channel select to ADCINA2
-    ADC_setSocTrigSrc(myAdc, ADC_SocNumber_0, ADC_SocTrigSrc_EPWM1_ADCSOCA);    //set SOC0 start trigger on EPWM1A, due to round-robin SOC0 converts first then SOC1
-    ADC_setSocTrigSrc(myAdc, ADC_SocNumber_1, ADC_SocTrigSrc_EPWM1_ADCSOCA);    //set SOC1 start trigger on EPWM1A, due to round-robin SOC0 converts first then SOC1
-    ADC_setSocTrigSrc(myAdc, ADC_SocNumber_2, ADC_SocTrigSrc_EPWM1_ADCSOCA);    //set SOC2 start trigger on EPWM1A, due to round-robin SOC0 converts first then SOC1, then SOC2
-    ADC_setSocSampleWindow(myAdc, ADC_SocNumber_0, ADC_SocSampleWindow_7_cycles);   //set SOC0 S/H Window to 7 ADC Clock Cycles, (6 ACQPS plus 1)
-    ADC_setSocSampleWindow(myAdc, ADC_SocNumber_1, ADC_SocSampleWindow_7_cycles);   //set SOC1 S/H Window to 7 ADC Clock Cycles, (6 ACQPS plus 1)
-    ADC_setSocSampleWindow(myAdc, ADC_SocNumber_2, ADC_SocSampleWindow_7_cycles);   //set SOC2 S/H Window to 7 ADC Clock Cycles, (6 ACQPS plus 1)
+    //ADC_setIntPulseGenMode(myAdc, ADC_IntPulseGenMode_Prior);               //ADCINT1 trips after AdcResults latch
+    //ADC_enableInt(myAdc, ADC_IntNumber_1);                                  //Enabled ADCINT1
+    //ADC_setIntMode(myAdc, ADC_IntNumber_1, ADC_IntMode_ClearFlag);          //Disable ADCINT1 Continuous mode
+    //ADC_setIntSrc(myAdc, ADC_IntNumber_1, ADC_IntSrc_EOC2);                 //setup EOC2 to trigger ADCINT1 to fire
+    //ADC_setSocChanNumber (myAdc, ADC_SocNumber_0, ADC_SocChanNumber_A4);    //set SOC0 channel select to ADCINA4
+    //ADC_setSocChanNumber (myAdc, ADC_SocNumber_1, ADC_SocChanNumber_A4);    //set SOC1 channel select to ADCINA4
+    //ADC_setSocChanNumber (myAdc, ADC_SocNumber_2, ADC_SocChanNumber_A2);    //set SOC2 channel select to ADCINA2
+    //ADC_setSocTrigSrc(myAdc, ADC_SocNumber_0, ADC_SocTrigSrc_EPWM1_ADCSOCA);    //set SOC0 start trigger on EPWM1A, due to round-robin SOC0 converts first then SOC1
+    //ADC_setSocTrigSrc(myAdc, ADC_SocNumber_1, ADC_SocTrigSrc_EPWM1_ADCSOCA);    //set SOC1 start trigger on EPWM1A, due to round-robin SOC0 converts first then SOC1
+    //ADC_setSocTrigSrc(myAdc, ADC_SocNumber_2, ADC_SocTrigSrc_EPWM1_ADCSOCA);    //set SOC2 start trigger on EPWM1A, due to round-robin SOC0 converts first then SOC1, then SOC2
+    //ADC_setSocSampleWindow(myAdc, ADC_SocNumber_0, ADC_SocSampleWindow_7_cycles);   //set SOC0 S/H Window to 7 ADC Clock Cycles, (6 ACQPS plus 1)
+    //ADC_setSocSampleWindow(myAdc, ADC_SocNumber_1, ADC_SocSampleWindow_7_cycles);   //set SOC1 S/H Window to 7 ADC Clock Cycles, (6 ACQPS plus 1)
+    //ADC_setSocSampleWindow(myAdc, ADC_SocNumber_2, ADC_SocSampleWindow_7_cycles);   //set SOC2 S/H Window to 7 ADC Clock Cycles, (6 ACQPS plus 1)
 
     // Enable PWM clock
-   CLK_enablePwmClock(myClk, PWM_Number_1);
+   //CLK_enablePwmClock(myClk, PWM_Number_1);
 
    // Setup PWM for ADC interrupt trigger
    //30MHz / 680 = 44.1 kHz
-   PWM_enableSocAPulse(myPwm);                                         // Enable SOC on A group.  SOC = start of conversion
-   PWM_setSocAPulseSrc(myPwm, PWM_SocPulseSrc_CounterEqualCmpAIncr);   // Select SOC from CPMA on upcount
-   PWM_setSocAPeriod(myPwm, PWM_SocPeriod_FirstEvent);                 // Generate pulse on 1st event
-   PWM_setCmpA(myPwm, 0x0080);                                         // Set compare A value.
-   PWM_setPeriod(myPwm, 680);                                       // Set period for ePWM1.  Trigger the ADC every 680 ePWM clocks.
-   PWM_setCounterMode(myPwm, PWM_CounterMode_Up);                      // count up and start
+   //PWM_enableSocAPulse(myPwm);                                         // Enable SOC on A group.  SOC = start of conversion
+   //PWM_setSocAPulseSrc(myPwm, PWM_SocPulseSrc_CounterEqualCmpAIncr);   // Select SOC from CPMA on upcount
+   //PWM_setSocAPeriod(myPwm, PWM_SocPeriod_FirstEvent);                 // Generate pulse on 1st event
+   //PWM_setCmpA(myPwm, 0x0080);                                         // Set compare A value.
+   //PWM_setPeriod(myPwm, 680);                                       // Set period for ePWM1.  Trigger the ADC every 680 ePWM clocks.
+   //PWM_setCounterMode(myPwm, PWM_CounterMode_Up);                      // count up and start
 
     // Initalize GPIO
     GPIO_setPullUp(myGpio, GPIO_Number_28, GPIO_PullUp_Enable);
@@ -471,7 +476,6 @@ void main()
 
     GPIO_setPullUp(myGpio, GPIO_Number_2, GPIO_PullUp_Disable);
     GPIO_setPullUp(myGpio, GPIO_Number_3, GPIO_PullUp_Disable);
-    GPIO_setMode(myGpio, GPIO_Number_2, GPIO_2_Mode_EPWM2A);
     GPIO_setMode(myGpio, GPIO_Number_3, GPIO_3_Mode_EPWM2B);
 
     //Push button input to start
@@ -480,10 +484,10 @@ void main()
     GPIO_setPullUp(myGpio, GPIO_Number_12, GPIO_PullUp_Disable);
 
     //Redirect STDOUT to SCI
-    status = add_device("scia", _SSA, SCI_open, SCI_close, SCI_read, SCI_write, SCI_lseek, SCI_unlink, SCI_rename);
-    fid = fopen("scia","w");
-    freopen("scia:", "w", stdout);
-    setvbuf(stdout, NULL, _IONBF, 0);
+    //status = add_device("scia", _SSA, SCI_open, SCI_close, SCI_read, SCI_write, SCI_lseek, SCI_unlink, SCI_rename);
+    //fid = fopen("scia","w");
+    //freopen("scia:", "w", stdout);
+    //setvbuf(stdout, NULL, _IONBF, 0);
 
     // Enable CPU INT3 which is connected to EPWM1-3 INT:
     CPU_enableInt(myCpu, CPU_IntNumber_3);
@@ -494,15 +498,15 @@ void main()
     CLK_enableTbClockSync(myClk);
     CLK_enablePwmClock(myClk, PWM_Number_2);
 
-    printf("yo");
+    //printf("yo");
 
     for(;;)
     {
         //DELAY_US(100000);
-    	if (GPIO_getData(myGpio, GPIO_Number_12) == 1)
-    	{
+    	//if (GPIO_getData(myGpio, GPIO_Number_12) == 1)
+    	//{
     		//printf("Loopcount: %i", loopCount);
-    	}
+    	//}
     }
 }
 

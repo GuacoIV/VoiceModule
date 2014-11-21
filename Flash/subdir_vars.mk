@@ -7,37 +7,30 @@ CMD_SRCS += \
 C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_headers/cmd/F2802x_Headers_nonBIOS.cmd 
 
 LIB_SRCS += \
-C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/lib/driverlib.lib \
-../ts_function.lib 
+C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/lib/driverlib.lib 
 
 C_SRCS += \
 ../Sin256Q15.c \
-../VoiceModule.c \
-../WriteDac.c 
+../VoiceModule.c 
 
 OBJS += \
 ./Sin256Q15.obj \
-./VoiceModule.obj \
-./WriteDac.obj 
+./VoiceModule.obj 
 
 C_DEPS += \
 ./Sin256Q15.pp \
-./VoiceModule.pp \
-./WriteDac.pp 
+./VoiceModule.pp 
 
 C_DEPS__QUOTED += \
 "Sin256Q15.pp" \
-"VoiceModule.pp" \
-"WriteDac.pp" 
+"VoiceModule.pp" 
 
 OBJS__QUOTED += \
 "Sin256Q15.obj" \
-"VoiceModule.obj" \
-"WriteDac.obj" 
+"VoiceModule.obj" 
 
 C_SRCS__QUOTED += \
 "../Sin256Q15.c" \
-"../VoiceModule.c" \
-"../WriteDac.c" 
+"../VoiceModule.c" 
 
 

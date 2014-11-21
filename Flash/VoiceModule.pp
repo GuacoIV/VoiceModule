@@ -48,12 +48,6 @@ VoiceModule.obj: C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_comm
 VoiceModule.obj: C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/include/sci_io.h
 VoiceModule.obj: C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/include/wdog.h
 VoiceModule.obj: ../Audio.h
-VoiceModule.obj: ../ts_function.h
-VoiceModule.obj: c:/ti/ccsv6/tools/compiler/c2000_6.2.8/include/stddef.h
-VoiceModule.obj: c:/ti/ccsv6/tools/compiler/c2000_6.2.8/include/stdlib.h
-VoiceModule.obj: c:/ti/ccsv6/tools/compiler/c2000_6.2.8/include/stdlibf.h
-VoiceModule.obj: ../rtwtypes.h
-VoiceModule.obj: ../ts_function_types.h
 
 ../VoiceModule.c: 
 c:/ti/ccsv6/tools/compiler/c2000_6.2.8/include/stdio.h: 
@@ -103,9 +97,3 @@ C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/include/sci.h:
 C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/include/sci_io.h: 
 C:/ti/controlSUITE/development_kits/C2000_LaunchPad/f2802x_common/include/wdog.h: 
 ../Audio.h: 
-../ts_function.h: 
-c:/ti/ccsv6/tools/compiler/c2000_6.2.8/include/stddef.h: 
-c:/ti/ccsv6/tools/compiler/c2000_6.2.8/include/stdlib.h: 
-c:/ti/ccsv6/tools/compiler/c2000_6.2.8/include/stdlibf.h: 
-../rtwtypes.h: 
-../ts_function_types.h: 
