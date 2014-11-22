@@ -338,6 +338,7 @@ void main()
     PLL_Handle myPll;
     WDOG_Handle myWDog;
 
+    init_audio();
     int i;
 	for(i = 0; i < FRAME_SIZE; i++)
 	{

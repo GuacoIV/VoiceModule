@@ -8,6 +8,12 @@
 #ifndef AUDIO_H_
 #define AUDIO_H_
 
+struct Audio
+{
+	const unsigned int *data;
+	unsigned int length;
+} beepLow, beepHigh, sine;
+
 //1000Hz~1.wav
 const unsigned int wavFile [] =
 {
@@ -49,5 +55,16 @@ const unsigned int wavFile3[] =
 		28677, 23620, 20291, 18799, 16469, 14599, 13330
 };
 
+void init_audio()
+{
+	sine.data = wavFile;
+	sine.length = 45;
+
+	beepLow.data = wavFile2;
+	beepLow.length = 111;
+
+	beepHigh.data = wavFile3;
+	beepHigh.data = 87;
+}
 
 #endif /* AUDIO_H_ */

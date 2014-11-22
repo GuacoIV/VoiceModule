@@ -1,7 +1,7 @@
 ******************************************************************************
              TMS320C2000 Linker PC v6.2.8                      
 ******************************************************************************
->> Linked Sat Nov 22 16:50:15 2014
+>> Linked Sat Nov 22 16:57:45 2014
 
 OUTPUT FILE NAME:   <VoiceModule.out>
 ENTRY POINT SYMBOL: "code_start"  address: 003f7ff6
@@ -297,22 +297,24 @@ address     data page           name
 
 00000400      10 (00000400)     __CIOBUF_
 
-00008800     220 (00008800)     _timeToUpdate
-00008801     220 (00008800)     _loopCount
-00008802     220 (00008800)     _ConversionCount
-00008803     220 (00008800)     _periodForSampleRate
-00008804     220 (00008800)     _maxValue
-00008805     220 (00008800)     _indexToPlay
-00008806     220 (00008800)     _myPwm
-00008808     220 (00008800)     _myCpu
-0000880a     220 (00008800)     _myPwm2
-0000880c     220 (00008800)     _mySci
-0000880e     220 (00008800)     _myFlash
+00008800     220 (00008800)     _periodForSampleRate
+00008801     220 (00008800)     _timeToUpdate
+00008802     220 (00008800)     _maxValue
+00008803     220 (00008800)     _indexToPlay
+00008804     220 (00008800)     _loopCount
+00008805     220 (00008800)     _ConversionCount
+00008806     220 (00008800)     _myFlash
+00008808     220 (00008800)     _myPwm
+0000880a     220 (00008800)     _myAdc
+0000880c     220 (00008800)     _myClk
+0000880e     220 (00008800)     _myCpu
 00008810     220 (00008800)     _myPie
-00008812     220 (00008800)     _myGpio
-00008814     220 (00008800)     _myClk
-00008816     220 (00008800)     _myAdc
-00008818     220 (00008800)     _epwm2_info
+00008812     220 (00008800)     _mySci
+00008814     220 (00008800)     _myPwm2
+00008816     220 (00008800)     _myGpio
+00008818     220 (00008800)     _beepHigh
+0000881c     220 (00008800)     _beepLow
+00008820     220 (00008800)     _epwm2_info
 
 00008840     221 (00008840)     _wavDuties
 
@@ -391,7 +393,7 @@ ffffffff   .text
 003f7439   _CPU_enableGlobalInts
 003f7414   _CPU_enableInt
 003f7418   _CPU_init
-00008802   _ConversionCount
+00008805   _ConversionCount
 003f734c   _DATALOG_ISR
 003f7196   _DSP28x_DisableInt
 003f719a   _DSP28x_RestoreInt
@@ -530,6 +532,8 @@ ffffffff   ___text__
 003f70e9   _abort
 003f6dd6   _adc_isr
 003f656c   _add_device
+00008818   _beepHigh
+0000881c   _beepLow
 003f6e6a   _c_int00
 003f700c   _calculate_duty_cycle
 003f6985   _calloc
@@ -538,7 +542,7 @@ ffffffff   ___text__
 003f653a   _close
 00008b3c   _cpu
 00008b30   _deviceOpen
-00008818   _epwm2_info
+00008820   _epwm2_info
 003f6fcf   _epwm2_isr
 003f70eb   _exit
 003f6d63   _fclose
@@ -548,26 +552,26 @@ ffffffff   ___text__
 003f6967   _free_memory
 003f6a32   _freopen
 003f6166   _highSpeedClockDiv
-00008805   _indexToPlay
+00008803   _indexToPlay
 00008b32   _ioSci
-00008801   _loopCount
+00008804   _loopCount
 003f6522   _lseek
 003f6170   _main
 003f6833   _malloc
-00008804   _maxValue
+00008802   _maxValue
 003f6947   _max_free
 003f680f   _minit
-00008816   _myAdc
-00008814   _myClk
-00008808   _myCpu
-0000880e   _myFlash
-00008812   _myGpio
+0000880a   _myAdc
+0000880c   _myClk
+0000880e   _myCpu
+00008806   _myFlash
+00008816   _myGpio
 00008810   _myPie
-00008806   _myPwm
-0000880a   _myPwm2
-0000880c   _mySci
+00008808   _myPwm
+00008814   _myPwm2
+00008812   _mySci
 003f64b0   _open
-00008803   _periodForSampleRate
+00008800   _periodForSampleRate
 003f6498   _read
 003f6893   _realloc
 003f744b   _remove
@@ -582,7 +586,7 @@ ffffffff   ___text__
 003f740f   _strcpy
 003f7295   _strlen
 003f6fee   _strncpy
-00008800   _timeToUpdate
+00008801   _timeToUpdate
 003f643d   _unlink
 003f71ae   _update_compare
 000088c0   _voltage
@@ -609,22 +613,24 @@ address    name
 00000400   __CIOBUF_
 00008000   _DSP28x_usDelay
 00008000   _RamfuncsRunStart
-00008800   _timeToUpdate
-00008801   _loopCount
-00008802   _ConversionCount
-00008803   _periodForSampleRate
-00008804   _maxValue
-00008805   _indexToPlay
-00008806   _myPwm
-00008808   _myCpu
-0000880a   _myPwm2
-0000880c   _mySci
-0000880e   _myFlash
+00008800   _periodForSampleRate
+00008801   _timeToUpdate
+00008802   _maxValue
+00008803   _indexToPlay
+00008804   _loopCount
+00008805   _ConversionCount
+00008806   _myFlash
+00008808   _myPwm
+0000880a   _myAdc
+0000880c   _myClk
+0000880e   _myCpu
 00008810   _myPie
-00008812   _myGpio
-00008814   _myClk
-00008816   _myAdc
-00008818   _epwm2_info
+00008812   _mySci
+00008814   _myPwm2
+00008816   _myGpio
+00008818   _beepHigh
+0000881c   _beepLow
+00008820   _epwm2_info
 00008840   _wavDuties
 000088c0   _voltage
 000089c0   ___TI_ft_end
@@ -848,4 +854,4 @@ ffffffff   binit
 ffffffff   etext
 ffffffff   pinit
 
-[247 symbols]
+[249 symbols]
