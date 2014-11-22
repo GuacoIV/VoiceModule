@@ -70,7 +70,6 @@ int timeToUpdate = 0;
 
 extern void DSP28x_usDelay(Uint32 Count);
 extern const unsigned int sine256Q15[];
-extern void WriteDac(Uint16 channel, int16 duty_frac);
 
 ADC_Handle myAdc;
 CLK_Handle myClk;
@@ -84,7 +83,6 @@ CPU_Handle myCpu;
 
 typedef struct
 {
-//    volatile struct EPWM_REGS *EPwmRegHandle;
     PWM_Handle myPwmHandle;
     uint16_t EPwm_CMPA_Direction;
     uint16_t EPwm_CMPB_Direction;
@@ -104,22 +102,23 @@ EPWM_INFO epwm2_info;
 
 int ConversionCount = 0;
 int16_t voltage[FRAME_SIZE];
-int16_t frame[FRAME_SIZE];
+//int16_t frame[FRAME_SIZE];
 int indexToPlay = 0;
 int loopCount = 0;
 const float sampleRate = 1000000;
 const float clockRate = 60000000;
-const int highSpeedClockDiv = 5;
+const int highSpeedClockDiv = 10;
 
 unsigned int periodForSampleRate;
 unsigned int maxValue; //= sine256Q15[64];//2^bitResolution - 1;
-unsigned int sineDuties[256];
-unsigned int wavDuties[100];
+//unsigned int sineDuties[256];
+#define fileLength 87
+unsigned int wavDuties[fileLength];
+
 
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
 void scia_init()
 {
-
     CLK_enableSciaClock(myClk);
 
     // 1 stop bit,  No loopback
@@ -204,7 +203,7 @@ void fullFrame()
 	int i = 0;
 	for (i = 0; i < FRAME_SIZE; i++)
 	{
-		frame[i] = voltage[i];
+		//frame[i] = voltage[i];
 		//Detect Jenkins now...
 	}
 }
@@ -225,12 +224,6 @@ __interrupt void adc_isr(void)
 	   PIE_disableAllInts(myPie);
 	   CPU_disableGlobalInts(myCpu);
 	   CPU_clearIntFlags(myCpu);
-
-	   int i;
-	   for (i = 0; i < FRAME_SIZE; i++)
-	   {
-		   //printf("%d, ", voltage[i]);
-	   }
     }
 
     if(ConversionCount == FRAME_SIZE)
@@ -263,7 +256,7 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 	//PWM_setCmpA(epwm_info->myPwmHandle, calculate_duty_cycle(dataToPlay[indexToPlay], 16));
 	PWM_setCmpB(epwm_info->myPwmHandle, dataToPlay[indexToPlay]);
 
-	if (++indexToPlay >= 256)//2536
+	if (++indexToPlay >= fileLength)//2536
 	{
 		//printf("Loop!");
 		indexToPlay = 0;
@@ -275,7 +268,7 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 interrupt void epwm2_isr(void)
 {
     // Update the CMPA and CMPB values
-    update_compare(&epwm2_info, sineDuties, true);
+    update_compare(&epwm2_info, wavDuties, true);
 	// Output a sine wave
 
     // Clear INT flag for this timer
@@ -353,15 +346,15 @@ void main()
 	}
 
 	periodForSampleRate = (((1/sampleRate) * clockRate) / (highSpeedClockDiv)); //136 for 44.1 kHz
-	maxValue = sine256Q15[64];//2^bitResolution - 1;
+	maxValue = 30000;//sine256Q15[64];//2^bitResolution - 1;
 
 	int counter = 0;
-	for (counter = 0; counter < 256; counter++)
-		sineDuties[counter] = calculate_duty_cycle(sine256Q15[counter], 16);
+	//for (counter = 0; counter < 256; counter++)
+	//	sineDuties[counter] = calculate_duty_cycle(sine256Q15[counter], 16);
 
 	counter = 0;
-	//for (counter = 0; counter < 1020; counter++)
-	//	wavDuties[counter] = calculate_duty_cycle(wavFile[counter], 16);
+	for (counter = 0; counter < fileLength; counter++)
+		wavDuties[counter] = calculate_duty_cycle(wavFile3[counter], 16);
 
 
     // Initialize all the handles needed for this application
