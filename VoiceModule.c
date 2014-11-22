@@ -111,9 +111,6 @@ const int highSpeedClockDiv = 10;
 
 unsigned int periodForSampleRate;
 unsigned int maxValue; //= sine256Q15[64];//2^bitResolution - 1;
-//unsigned int sineDuties[256];
-#define fileLength 87
-unsigned int wavDuties[fileLength];
 
 
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
@@ -245,20 +242,18 @@ int calculate_duty_cycle(unsigned int data, int bitResolution)
 {
 	//const float sampleRate = 2560;
 
-	unsigned int duty = (((float) data/maxValue) * (float) periodForSampleRate);//32767
+	unsigned int duty = (float)(((float) data/maxValue) * (float) periodForSampleRate);//32767
 	//printf("data = %i, duty = %i \r\n", data, duty);
 
 	return duty;
 }
 
-void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool loop)
+void update_compare(EPWM_INFO *epwm_info, struct Audio audio, bool loop)
 {
-	//PWM_setCmpA(epwm_info->myPwmHandle, calculate_duty_cycle(dataToPlay[indexToPlay], 16));
-	PWM_setCmpB(epwm_info->myPwmHandle, dataToPlay[indexToPlay]);
+	PWM_setCmpB(epwm_info->myPwmHandle, audio.duties[indexToPlay]);
 
-	if (++indexToPlay >= fileLength)//2536
+	if (++indexToPlay >= audio.length)
 	{
-		//printf("Loop!");
 		indexToPlay = 0;
 		++loopCount;
 	}
@@ -267,8 +262,8 @@ void update_compare(EPWM_INFO *epwm_info, const unsigned int *dataToPlay, bool l
 
 interrupt void epwm2_isr(void)
 {
-    // Update the CMPA and CMPB values
-    update_compare(&epwm2_info, wavDuties, true);
+    // Update the CMPB values
+    update_compare(&epwm2_info, beepLow, true);
 	// Output a sine wave
 
     // Clear INT flag for this timer
@@ -347,16 +342,22 @@ void main()
 	}
 
 	periodForSampleRate = (((1/sampleRate) * clockRate) / (highSpeedClockDiv)); //136 for 44.1 kHz
-	maxValue = 30000;//sine256Q15[64];//2^bitResolution - 1;
+	maxValue = 32767;
 
 	int counter = 0;
-	//for (counter = 0; counter < 256; counter++)
-	//	sineDuties[counter] = calculate_duty_cycle(sine256Q15[counter], 16);
+	for (counter = 0; counter < sine.length; counter++)
+		sine.duties[counter] = calculate_duty_cycle(sine.data[counter], 16);
 
 	counter = 0;
-	for (counter = 0; counter < fileLength; counter++)
-		wavDuties[counter] = calculate_duty_cycle(wavFile3[counter], 16);
+	for (counter = 0; counter < beepLow.length; counter++)
+		beepLow.duties[counter] = calculate_duty_cycle(beepLow.data[counter], 16);
 
+	counter = 0;
+	for (counter = 0; counter < beepHigh.length; counter++)
+	{
+		beepHigh.duties[counter] = calculate_duty_cycle(beepHigh.data[counter], 16);
+		printf("duty%i is %u", counter, beepHigh.duties[counter]);
+	}
 
     // Initialize all the handles needed for this application
     myAdc = ADC_init((void *)ADC_BASE_ADDR, sizeof(ADC_Obj));
@@ -490,7 +491,6 @@ void main()
     CLK_disableTbClockSync(myClk);
     InitEPwm2();
     CLK_enableTbClockSync(myClk);
-    CLK_enablePwmClock(myClk, PWM_Number_2);
 
     //printf("yo");
 
