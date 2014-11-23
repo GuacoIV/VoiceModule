@@ -68,9 +68,6 @@ interrupt void epwm2_isr(void);
 void Adc_Config(void);
 int timeToUpdate = 0;
 
-extern void DSP28x_usDelay(Uint32 Count);
-extern const unsigned int sine256Q15[];
-
 ADC_Handle myAdc;
 CLK_Handle myClk;
 FLASH_Handle myFlash;
@@ -111,7 +108,6 @@ const int highSpeedClockDiv = 10;
 
 unsigned int periodForSampleRate;
 unsigned int maxValue; //= sine256Q15[64];//2^bitResolution - 1;
-
 
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
 void scia_init()
@@ -264,7 +260,7 @@ interrupt void epwm2_isr(void)
 {
     // Update the CMPB values
     update_compare(&epwm2_info, beepLow, true);
-	// Output a sine wave
+    if (loopCount > 10000) CLK_disableTbClockSync(myClk);
 
     // Clear INT flag for this timer
     PWM_clearIntFlag(myPwm2);
@@ -354,10 +350,8 @@ void main()
 
 	counter = 0;
 	for (counter = 0; counter < beepHigh.length; counter++)
-	{
 		beepHigh.duties[counter] = calculate_duty_cycle(beepHigh.data[counter], 16);
-		printf("duty%i is %u", counter, beepHigh.duties[counter]);
-	}
+
 
     // Initialize all the handles needed for this application
     myAdc = ADC_init((void *)ADC_BASE_ADDR, sizeof(ADC_Obj));
@@ -406,7 +400,7 @@ void main()
     PIE_enable(myPie);
 
     // Initialize SCIA
-    //scia_init();
+    scia_init();
 
     PIE_registerPieIntHandler(myPie, PIE_GroupNumber_10, PIE_SubGroupNumber_1, (intVec_t)&adc_isr);
     PIE_registerPieIntHandler(myPie, PIE_GroupNumber_3, PIE_SubGroupNumber_2, (intVec_t)&epwm2_isr);
@@ -489,18 +483,22 @@ void main()
     PIE_enablePwmInt(myPie, PWM_Number_2);
 
     CLK_disableTbClockSync(myClk);
-    InitEPwm2();
-    CLK_enableTbClockSync(myClk);
 
-    //printf("yo");
+    printf("yo");
 
     for(;;)
     {
-        //DELAY_US(100000);
-    	//if (GPIO_getData(myGpio, GPIO_Number_12) == 1)
-    	//{
-    		//printf("Loopcount: %i", loopCount);
-    	//}
+        DELAY_US(500000);
+    	if (GPIO_getData(myGpio, GPIO_Number_12) == 1)
+    	{
+    		printf("enabling audio");
+    		//audioToPlay = beepLow;
+    		InitEPwm2();
+    		CLK_enableTbClockSync(myClk);
+
+    		printf("done");
+
+    	}
     }
 }
 
