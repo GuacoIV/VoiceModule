@@ -108,6 +108,7 @@ const int highSpeedClockDiv = 10;
 
 unsigned int periodForSampleRate;
 unsigned int maxValue; //= sine256Q15[64];//2^bitResolution - 1;
+struct Audio audioToPlay;
 
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
 void scia_init()
@@ -259,8 +260,8 @@ void update_compare(EPWM_INFO *epwm_info, struct Audio audio, bool loop)
 interrupt void epwm2_isr(void)
 {
     // Update the CMPB values
-    update_compare(&epwm2_info, beepLow, true);
-    if (loopCount > 10000) CLK_disableTbClockSync(myClk);
+    update_compare(&epwm2_info, audioToPlay, true);
+    if (loopCount > 5000) CLK_disableTbClockSync(myClk);
 
     // Clear INT flag for this timer
     PWM_clearIntFlag(myPwm2);
@@ -318,6 +319,28 @@ void InitEPwm2()
     epwm2_info.EPwmMinCMPA = halfOfPeriod;
     epwm2_info.EPwmMaxCMPB = period;
     epwm2_info.EPwmMinCMPB = halfOfPeriod;
+}
+
+void beep_low_then_high()
+{
+	printf("enabling audio");
+	audioToPlay = beepLow;
+	InitEPwm2();
+	CLK_enableTbClockSync(myClk);
+	audioToPlay = beepHigh;
+	CLK_enableTbClockSync(myClk);
+	printf("done");
+}
+
+void beep_high_then_low()
+{
+	printf("enabling audio");
+	audioToPlay = beepHigh;
+	InitEPwm2();
+	CLK_enableTbClockSync(myClk);
+	audioToPlay = beepLow;
+	CLK_enableTbClockSync(myClk);
+	printf("done");
 }
 
 void main()
@@ -491,13 +514,7 @@ void main()
         DELAY_US(500000);
     	if (GPIO_getData(myGpio, GPIO_Number_12) == 1)
     	{
-    		printf("enabling audio");
-    		//audioToPlay = beepLow;
-    		InitEPwm2();
-    		CLK_enableTbClockSync(myClk);
-
-    		printf("done");
-
+    		beep_low_then_high();
     	}
     }
 }
