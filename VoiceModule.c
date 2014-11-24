@@ -50,7 +50,7 @@
 #include <stdio.h>
 #include <file.h>
 
-#include "DSP28x_Project.h"     // DSP28x Headerfile
+#include "DSP28x_Project.h"
 
 #include "f2802x_common/include/adc.h"
 #include "f2802x_common/include/clk.h"
@@ -63,10 +63,9 @@
 #include "f2802x_common/include/wdog.h"
 #include "Audio.h"
 
-__interrupt void adc_isr(void);
+interrupt void adc_isr(void);
 interrupt void epwm2_isr(void);
 void Adc_Config(void);
-int timeToUpdate = 0;
 
 ADC_Handle myAdc;
 CLK_Handle myClk;
@@ -75,7 +74,6 @@ GPIO_Handle myGpio;
 PIE_Handle myPie;
 SCI_Handle mySci;
 PWM_Handle myPwm, myPwm2;
-
 CPU_Handle myCpu;
 
 typedef struct
@@ -98,6 +96,8 @@ EPWM_INFO epwm2_info;
 #define EPWM_CMP_DOWN 0
 
 int ConversionCount = 0;
+bool calibrateDC = true;
+int DCBias = 0;
 int16_t voltage[FRAME_SIZE];
 //int16_t frame[FRAME_SIZE];
 int indexToPlay = 0;
@@ -202,30 +202,42 @@ void fullFrame()
 	}
 }
 
-__interrupt void adc_isr(void)
+void stop_adc()
+{
+	ADC_disable(myAdc);
+	ADC_clearIntFlag(myAdc, ADC_IntNumber_1);
+	PIE_clearInt(myPie, PIE_GroupNumber_10);
+	ADC_disableInt(myAdc, ADC_IntNumber_1);
+	CPU_disableInt(myCpu, CPU_IntNumber_10);
+}
+
+interrupt void adc_isr(void)
 {
     //discard ADCRESULT0 as part of the workaround to the 1st sample errata for rev0
-	//TODO: Subtract DC Bias
     int a = ADC_readResult(myAdc, ADC_ResultNumber_1);
     int b = ADC_readResult(myAdc, ADC_ResultNumber_2);
-    voltage[ConversionCount] = (a+b)/2;
+    voltage[ConversionCount] = ((a+b)/2) - DCBias;
 
-    if (ConversionCount == FRAME_SIZE)
-    {
-    	// Disable the PIE and all interrupts
-    	//TODO: Remove this after we want continuous frames
-	   PIE_disable(myPie);
-	   PIE_disableAllInts(myPie);
-	   CPU_disableGlobalInts(myCpu);
-	   CPU_clearIntFlags(myCpu);
-    }
-
-    if(ConversionCount == FRAME_SIZE)
+    if(ConversionCount == FRAME_SIZE && !calibrateDC)
     {
     	fullFrame();
         ConversionCount = 0;
     }
-    else ConversionCount++;
+    else if (ConversionCount == FRAME_SIZE && calibrateDC)
+    {
+    	long bias = 0;
+    	int i = 0;
+    	for (i = 0; i < FRAME_SIZE; i++)
+    	{
+    		bias += voltage[i];
+    	}
+    	bias /= FRAME_SIZE;
+    	DCBias = (int) bias;
+    	ConversionCount = 0;
+    	calibrateDC = false;
+    }
+    else
+    	ConversionCount++;
 
     // Clear ADCINT1 flag reinitialize for next SOC
     ADC_clearIntFlag(myAdc, ADC_IntNumber_1);
