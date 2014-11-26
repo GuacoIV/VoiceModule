@@ -519,7 +519,10 @@ void main()
 
     CLK_disableTbClockSync(myClk);
 
-    printf("yo");
+    //printf("yo");
+    //int flashCounter = 0;
+    //for (flashCounter = 0; flashCounter < 2340; flashCounter++)
+    //	printf("%d,", data[flashCounter]);
 
     for(;;)
     {
