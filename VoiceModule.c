@@ -109,6 +109,8 @@ const int highSpeedClockDiv = 10;
 unsigned int periodForSampleRate;
 unsigned int maxValue; //= sine256Q15[64];//2^bitResolution - 1;
 struct Audio audioToPlay;
+bool demo = true;
+int demoState = 0;
 
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
 void scia_init()
@@ -335,6 +337,8 @@ void InitEPwm2()
 
 void beep_low_then_high()
 {
+	indexToPlay = 0;
+	loopCount = 0;
 	printf("enabling audio");
 	audioToPlay = beepLow;
 	InitEPwm2();
@@ -352,13 +356,17 @@ void beep_low_then_high()
 
 void beep_high_then_low()
 {
+	indexToPlay = 0;
+	loopCount = 0;
 	printf("enabling audio");
 	audioToPlay = beepHigh;
 	InitEPwm2();
 	CLK_enableTbClockSync(myClk);
+	printf("switching");
 	indexToPlay = 0;
 	loopCount = 0;
 	audioToPlay = beepLow;
+	InitEPwm2();
 	CLK_enableTbClockSync(myClk);
 	indexToPlay = 0;
 	loopCount = 0;
@@ -537,10 +545,18 @@ void main()
     for(;;)
     {
         DELAY_US(500000);
-    	if (GPIO_getData(myGpio, GPIO_Number_12) == 1)
-    	{
-    		beep_low_then_high();
-    	}
+        if (demo)
+        {
+			if (GPIO_getData(myGpio, GPIO_Number_12) == 1)
+			{
+				if (demoState == 0)
+					beep_low_then_high();
+				else if (demoState == 1)
+					beep_high_then_low();
+
+				demoState++;
+			}
+        }
     }
 }
 
