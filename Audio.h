@@ -12,7 +12,7 @@ struct Audio
 {
 	const unsigned int *data;
 	unsigned int length;
-	unsigned int *duties;
+	unsigned int duties[111];
 } beepLow, beepHigh, sine;
 
 #pragma DATA_SECTION (data, ".myFlash")
@@ -64,18 +64,12 @@ void init_audio()
 {
 	sine.data = wavFile;
 	sine.length = 45;
-	unsigned int duties[45];
-	sine.duties = duties;
 
 	beepLow.data = wavFile2;
 	beepLow.length = 111;
-	unsigned int duties2[111];
-	sine.duties = duties2;
 
 	beepHigh.data = wavFile3;
 	beepHigh.length = 87;
-	unsigned int duties3[87];
-	sine.duties = duties3;
 }
 
 #endif /* AUDIO_H_ */

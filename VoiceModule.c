@@ -273,7 +273,7 @@ interrupt void epwm2_isr(void)
 {
     // Update the CMPB values
     update_compare(&epwm2_info, audioToPlay, true);
-    if (loopCount > 5000) CLK_disableTbClockSync(myClk);
+    if (loopCount > 1000) CLK_disableTbClockSync(myClk);
 
     // Clear INT flag for this timer
     PWM_clearIntFlag(myPwm2);
@@ -339,8 +339,14 @@ void beep_low_then_high()
 	audioToPlay = beepLow;
 	InitEPwm2();
 	CLK_enableTbClockSync(myClk);
+	printf("switching");
+	indexToPlay = 0;
+	loopCount = 0;
 	audioToPlay = beepHigh;
+	InitEPwm2();
 	CLK_enableTbClockSync(myClk);
+	indexToPlay = 0;
+	loopCount = 0;
 	printf("done");
 }
 
@@ -350,8 +356,12 @@ void beep_high_then_low()
 	audioToPlay = beepHigh;
 	InitEPwm2();
 	CLK_enableTbClockSync(myClk);
+	indexToPlay = 0;
+	loopCount = 0;
 	audioToPlay = beepLow;
 	CLK_enableTbClockSync(myClk);
+	indexToPlay = 0;
+	loopCount = 0;
 	printf("done");
 }
 
