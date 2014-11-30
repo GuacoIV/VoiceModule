@@ -104,14 +104,17 @@ int indexToPlay = 0;
 int loopCount = 0;
 const float sampleRate = 1000000;
 const float clockRate = 60000000;
-const int highSpeedClockDiv = 10;
+const int highSpeedClockDiv = 5;
 
 unsigned int periodForSampleRate;
 unsigned int maxValue; //= sine256Q15[64];//2^bitResolution - 1;
 struct Audio audioToPlay;
 struct Audio secondPitch;
+bool switchedPitches = false;
 bool demo = true;
+bool audioIsInFlash = false;
 int demoState = 0;
+int numInterrupt = 0;
 
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
 void scia_init()
@@ -262,12 +265,29 @@ int calculate_duty_cycle(unsigned int data, int bitResolution)
 
 void update_compare(EPWM_INFO *epwm_info, struct Audio audio, bool loop)
 {
-	PWM_setCmpB(epwm_info->myPwmHandle, audio.duties[indexToPlay]);
-
-	if (++indexToPlay >= audio.length)
+	if (!audioIsInFlash)
 	{
-		indexToPlay = 0;
-		++loopCount;
+		PWM_setCmpB(epwm_info->myPwmHandle, audio.duties[indexToPlay]);
+
+		if (++indexToPlay >= audio.length)
+		{
+			indexToPlay = 0;
+			++loopCount;
+		}
+	}
+	else
+	{
+		numInterrupt++;
+		if (numInterrupt == 8)
+		{
+			PWM_setCmpB(epwm_info->myPwmHandle, flashDuties[indexToPlay]);
+			if (++indexToPlay >= flashLength)
+			{
+				indexToPlay = 0;
+				++loopCount;
+			}
+			numInterrupt = 0;
+		}
 	}
 	return;
 }
@@ -277,15 +297,17 @@ interrupt void epwm2_isr(void)
     // Update the CMPB values
     update_compare(&epwm2_info, audioToPlay, true);
 
-    if (loopCount == 1000)
-    	audioToPlay = secondPitch;
-    else if (loopCount == 2000)
+	if (loopCount > 1000 && loopCount < 2000 && !switchedPitches)
+	{
+		audioToPlay = secondPitch;
+		switchedPitches = true;
+	}
+	else if (loopCount >= 2000)
 	{
 		CLK_disableTbClockSync(myClk);
 		loopCount = 0;
 		indexToPlay = 0;
 	}
-
 
 
     // Clear INT flag for this timer
@@ -348,42 +370,26 @@ void InitEPwm2()
 
 void beep_low_then_high()
 {
+	audioIsInFlash = false;
+	switchedPitches = false;
 	indexToPlay = 0;
 	loopCount = 0;
-	//printf("enabling audio");
 	audioToPlay = beepLow;
 	secondPitch = beepHigh;
 	InitEPwm2();
 	CLK_enableTbClockSync(myClk);
-	//printf("switching");
-	/*indexToPlay = 0;
-	loopCount = 0;
-	audioToPlay = beepHigh;
-	InitEPwm2();
-	CLK_enableTbClockSync(myClk);
-	indexToPlay = 0;
-	loopCount = 0;*/
-	//printf("done");
 }
 
 void beep_high_then_low()
 {
+	audioIsInFlash = false;
+	switchedPitches = false;
 	indexToPlay = 0;
 	loopCount = 0;
-	//printf("enabling audio");
 	audioToPlay = beepHigh;
 	secondPitch = beepLow;
 	InitEPwm2();
 	CLK_enableTbClockSync(myClk);
-	//printf("switching");
-	//indexToPlay = 0;
-	//loopCount = 0;
-	//audioToPlay = beepLow;
-	//InitEPwm2();
-	//CLK_enableTbClockSync(myClk);
-	//indexToPlay = 0;
-	//loopCount = 0;
-	//printf("done");
 }
 
 void main()
@@ -566,8 +572,16 @@ void main()
 					beep_low_then_high();
 				else if (demoState == 1)
 					beep_high_then_low();
+				else if (demoState == 2)
+				{
+					audioIsInFlash = true;
+					indexToPlay = 0;
+					loopCount = 0;
+					InitEPwm2();
+					CLK_enableTbClockSync(myClk);
+				}
 
-				demoState = ++demoState % 2;
+				demoState = ++demoState % 3;
 			}
         }
     }
