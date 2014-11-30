@@ -48,10 +48,9 @@ typedef struct
 EPWM_INFO epwm2_info;
 
 #define FRAME_SIZE 256
-
 #define EPWM_CMP_UP   1
-#define EPWM_CMP_DOWN 0
 #define MAX_SAMPLE_VALUE 4095
+#define INCLUDE_PRINTF false
 
 int ConversionCount = 0;
 bool calibrateDC = true;
@@ -74,7 +73,7 @@ bool audioIsInFlash = false;
 int demoState = 0;
 int numInterrupt = 0;
 
-
+#if INCLUDE_PRINTF
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
 void scia_init()
 {
@@ -118,6 +117,7 @@ void scia_init()
 
     return;
 }
+#endif
 
 /*
  * Simultaneously transmit and receive a byte on the SPI.
@@ -242,7 +242,7 @@ void update_compare(EPWM_INFO *epwm_info, struct Audio audio, bool loop)
 	else
 	{
 		numInterrupt++;
-		if (numInterrupt == 13)
+		if (numInterrupt == 7)
 		{
 			PWM_setCmpB(epwm_info->myPwmHandle, flashDuties[indexToPlay]);
 			if (++indexToPlay >= flashLength)
@@ -362,8 +362,10 @@ void beep_high_then_low()
 
 void main()
 {
+#if INCLUDE_PRINTF
     volatile int status = 0;
     volatile FILE *fid;
+#endif
 
     CPU_Handle myCpu;
     PLL_Handle myPll;
@@ -439,8 +441,10 @@ void main()
     PIE_setDebugIntVectorTable(myPie);
     PIE_enable(myPie);
 
+#if INCLUDE_PRINTF
     // Initialize SCIA
     scia_init();
+#endif
 
     PIE_registerPieIntHandler(myPie, PIE_GroupNumber_10, PIE_SubGroupNumber_1, (intVec_t)&adc_isr);
     PIE_registerPieIntHandler(myPie, PIE_GroupNumber_3, PIE_SubGroupNumber_2, (intVec_t)&epwm2_isr);
@@ -512,11 +516,13 @@ void main()
     GPIO_setDirection(myGpio, GPIO_Number_12, GPIO_Direction_Input);
     GPIO_setPullUp(myGpio, GPIO_Number_12, GPIO_PullUp_Disable);
 
+#if INCLUDE_PRINTF
     //Redirect STDOUT to SCI
     status = add_device("scia", _SSA, SCI_open, SCI_close, SCI_read, SCI_write, SCI_lseek, SCI_unlink, SCI_rename);
     fid = fopen("scia","w");
     freopen("scia:", "w", stdout);
     setvbuf(stdout, NULL, _IONBF, 0);
+#endif
 
     // Enable CPU INT3 which is connected to EPWM1-3 INT:
     CPU_enableInt(myCpu, CPU_IntNumber_3);
@@ -526,7 +532,7 @@ void main()
 
     GPIO_setLow(myGpio, GPIO_Number_0);
     GPIO_setLow(myGpio, GPIO_Number_1);
-    printf("setting low");
+    //printf("setting low");
 
     for(;;)
     {
