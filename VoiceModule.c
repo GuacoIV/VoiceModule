@@ -94,6 +94,7 @@ EPWM_INFO epwm2_info;
 
 #define EPWM_CMP_UP   1
 #define EPWM_CMP_DOWN 0
+#define MAX_SAMPLE_VALUE 4095
 
 int ConversionCount = 0;
 bool calibrateDC = true;
@@ -201,10 +202,15 @@ uint8_t SPI_transfer_byte(uint8_t byte_out)
 void fullFrame()
 {
 	int i = 0;
+	int half = MAX_SAMPLE_VALUE / 2;
+	GPIO_setLow(myGpio, GPIO_Number_0);
 	for (i = 0; i < FRAME_SIZE; i++)
 	{
 		//frame[i] = voltage[i];
 		//Detect Jenkins now...
+		//if (voltage[i] > half)
+			//GPIO_setHigh(myGpio, GPIO_Number_0);
+		//printf("%d, ", voltage[i]);
 	}
 }
 
@@ -269,7 +275,7 @@ void update_compare(EPWM_INFO *epwm_info, struct Audio audio, bool loop)
 	{
 		PWM_setCmpB(epwm_info->myPwmHandle, audio.duties[indexToPlay]);
 
-		if (++indexToPlay >= audio.length)
+		if (++indexToPlay >= audio.length && loop)
 		{
 			indexToPlay = 0;
 			++loopCount;
@@ -278,13 +284,14 @@ void update_compare(EPWM_INFO *epwm_info, struct Audio audio, bool loop)
 	else
 	{
 		numInterrupt++;
-		if (numInterrupt == 8)
+		if (numInterrupt == 13)
 		{
 			PWM_setCmpB(epwm_info->myPwmHandle, flashDuties[indexToPlay]);
 			if (++indexToPlay >= flashLength)
 			{
 				indexToPlay = 0;
 				++loopCount;
+				CLK_disableTbClockSync(myClk);
 			}
 			numInterrupt = 0;
 		}
@@ -295,7 +302,10 @@ void update_compare(EPWM_INFO *epwm_info, struct Audio audio, bool loop)
 interrupt void epwm2_isr(void)
 {
     // Update the CMPB values
-    update_compare(&epwm2_info, audioToPlay, true);
+	if (!audioIsInFlash)
+		update_compare(&epwm2_info, audioToPlay, true);
+	else
+		update_compare(&epwm2_info, audioToPlay, false);
 
 	if (loopCount > 1000 && loopCount < 2000 && !switchedPitches)
 	{
@@ -556,10 +566,9 @@ void main()
 
     CLK_disableTbClockSync(myClk);
 
-    //printf("yo");
-    //int flashCounter = 0;
-    //for (flashCounter = 0; flashCounter < 2340; flashCounter++)
-    //	printf("%d,", data[flashCounter]);
+    GPIO_setLow(myGpio, GPIO_Number_0);
+    GPIO_setLow(myGpio, GPIO_Number_1);
+    printf("setting low");
 
     for(;;)
     {
