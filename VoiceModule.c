@@ -61,7 +61,7 @@ int indexToPlay = 0;
 int loopCount = 0;
 const float sampleRate = 1000000;
 const float clockRate = 60000000;
-const int highSpeedClockDiv = 5;
+const int highSpeedClockDiv = 3;
 
 unsigned int periodForSampleRate;
 unsigned int maxValue; //= sine256Q15[64];//2^bitResolution - 1;
@@ -242,7 +242,7 @@ void update_compare(EPWM_INFO *epwm_info, struct Audio audio, bool loop)
 	else
 	{
 		numInterrupt++;
-		if (numInterrupt == 7)
+		if (numInterrupt == 13)
 		{
 			PWM_setCmpB(epwm_info->myPwmHandle, flashDuties[indexToPlay]);
 			if (++indexToPlay >= flashLength)

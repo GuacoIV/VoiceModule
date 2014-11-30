@@ -1,7 +1,7 @@
 ******************************************************************************
              TMS320C2000 Linker PC v6.2.8                      
 ******************************************************************************
->> Linked Sun Nov 30 13:30:54 2014
+>> Linked Sun Nov 30 13:53:22 2014
 
 OUTPUT FILE NAME:   <VoiceModule.out>
 ENTRY POINT SYMBOL: "code_start"  address: 003f7ff6
@@ -60,7 +60,7 @@ PAGE 1:
   I2CA                  00007900   00000040  00000000  00000040  RWIX
   DRAML0                00008800   00000800  000003c9  00000437  RWIX
   PARTID                003d7fff   00000001  00000000  00000001  RWIX
-  JENKINS               003f0000   00003fff  00003fff  00000000  RWIX
+  JENKINS               003f0000   00003042  00003042  00000000  RWIX
   FLASHB                003f4000   00002000  00000000  00002000  RWIX
   CSM_PWL               003f7ff8   00000008  00000000  00000008  RWIX
 
@@ -256,8 +256,8 @@ vectors    0    003fffc2    00000000     DSECT
                   00008bc4    00000004                    : exit.obj (.ebss)
                   00008bc8    00000001     driverlib.lib : cpu.obj (.ebss)
 
-.jenkins   1    003f0000    00003fff     
-                  003f0000    00003fff     VoiceModule.obj (.jenkins)
+.jenkins   1    003f0000    00003042     
+                  003f0000    00003042     VoiceModule.obj (.jenkins)
 
 
 GLOBAL DATA SYMBOLS: SORTED BY DATA PAGE
