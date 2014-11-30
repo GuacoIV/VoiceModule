@@ -109,6 +109,7 @@ const int highSpeedClockDiv = 10;
 unsigned int periodForSampleRate;
 unsigned int maxValue; //= sine256Q15[64];//2^bitResolution - 1;
 struct Audio audioToPlay;
+struct Audio secondPitch;
 bool demo = true;
 int demoState = 0;
 
@@ -275,7 +276,17 @@ interrupt void epwm2_isr(void)
 {
     // Update the CMPB values
     update_compare(&epwm2_info, audioToPlay, true);
-    if (loopCount > 1000) CLK_disableTbClockSync(myClk);
+
+    if (loopCount == 1000)
+    	audioToPlay = secondPitch;
+    else if (loopCount == 2000)
+	{
+		CLK_disableTbClockSync(myClk);
+		loopCount = 0;
+		indexToPlay = 0;
+	}
+
+
 
     // Clear INT flag for this timer
     PWM_clearIntFlag(myPwm2);
@@ -339,38 +350,40 @@ void beep_low_then_high()
 {
 	indexToPlay = 0;
 	loopCount = 0;
-	printf("enabling audio");
+	//printf("enabling audio");
 	audioToPlay = beepLow;
+	secondPitch = beepHigh;
 	InitEPwm2();
 	CLK_enableTbClockSync(myClk);
-	printf("switching");
-	indexToPlay = 0;
+	//printf("switching");
+	/*indexToPlay = 0;
 	loopCount = 0;
 	audioToPlay = beepHigh;
 	InitEPwm2();
 	CLK_enableTbClockSync(myClk);
 	indexToPlay = 0;
-	loopCount = 0;
-	printf("done");
+	loopCount = 0;*/
+	//printf("done");
 }
 
 void beep_high_then_low()
 {
 	indexToPlay = 0;
 	loopCount = 0;
-	printf("enabling audio");
+	//printf("enabling audio");
 	audioToPlay = beepHigh;
+	secondPitch = beepLow;
 	InitEPwm2();
 	CLK_enableTbClockSync(myClk);
-	printf("switching");
-	indexToPlay = 0;
-	loopCount = 0;
-	audioToPlay = beepLow;
-	InitEPwm2();
-	CLK_enableTbClockSync(myClk);
-	indexToPlay = 0;
-	loopCount = 0;
-	printf("done");
+	//printf("switching");
+	//indexToPlay = 0;
+	//loopCount = 0;
+	//audioToPlay = beepLow;
+	//InitEPwm2();
+	//CLK_enableTbClockSync(myClk);
+	//indexToPlay = 0;
+	//loopCount = 0;
+	//printf("done");
 }
 
 void main()
@@ -554,7 +567,7 @@ void main()
 				else if (demoState == 1)
 					beep_high_then_low();
 
-				demoState++;
+				demoState = ++demoState % 2;
 			}
         }
     }
