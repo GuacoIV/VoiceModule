@@ -1,51 +1,8 @@
 //###########################################################################
 //
 // FILE:    VoiceModule.c
-//
-// ASSUMPTIONS:
-//
-//    This program requires the F2802x0 header files.
-//
-//    This program makes use of variables stored in OTP during factory
-//    test on 2802x TMS devices only.
-//    These OTP locations on pre-TMS devices may not be populated.
-//    Ensure that the following memory locations in TI OTP are populated
-//    (not 0xFFFF) before use:
-//
-//    0x3D7E90 to 0x3D7EA4
-//
-//    As supplied, this project is configured for "boot to SARAM"
-//    operation.  The 2802x Boot Mode table is shown below.
-//
-//    $Boot_Table
-//    While an emulator is connected to your device, the TRSTn pin = 1,
-//    which sets the device into EMU_BOOT boot mode. In this mode, the
-//    peripheral boot modes are as follows:
-//
-//      Boot Mode:   EMU_KEY        EMU_BMODE
-//                   (0xD00)         (0xD01)
-//      ---------------------------------------
-//      Wait         !=0x55AA        X
-//      I/O          0x55AA          0x0000
-//      SCI          0x55AA          0x0001
-//      Wait         0x55AA          0x0002
-//      Get_Mode     0x55AA          0x0003
-//      SPI          0x55AA          0x0004
-//      I2C          0x55AA          0x0005
-//      OTP          0x55AA          0x0006
-//      Wait         0x55AA          0x0007
-//      Wait         0x55AA          0x0008
-//      SARAM        0x55AA          0x000A   <-- "Boot to SARAM"
-//      Flash        0x55AA          0x000B
-//      Wait         0x55AA          Other
-//
-//   Write EMU_KEY to 0xD00 and EMU_BMODE to 0xD01 via the debugger
-//   according to the Boot Mode Table above. Build/Load project,
-//   Reset the device, and Run example
-//
-//   $End_Boot_Table
-//	 EPWM2A is on GPIO2
-//   EPWM2B is on GPIO3
+// EPWM2B is Launchpad J6 - 4 (Audio out)
+// ADCINA4 is Launchpad J1 - 6 (Mic in)
 
 #include <stdio.h>
 #include <file.h>
@@ -116,6 +73,7 @@ bool demo = true;
 bool audioIsInFlash = false;
 int demoState = 0;
 int numInterrupt = 0;
+
 
 // SCIA  8-bit word, baud rate 0x000F, default, 1 STOP bit, no parity
 void scia_init()
